@@ -1858,7 +1858,8 @@ const SUPA_URL_BAKED = "https://vynscxllkbmgdxfpsrwj.supabase.co";
 const SUPA_KEY_BAKED = "sb_publishable_2P0J_2SAUJ1sJyGtyWiGwA_m8VEzuMI";
 const REQUIRE_AUTH   = true;      // everyone signs in before using the app
 const ENABLE_APPLE   = false;     // flip to true once Apple sign-in is configured in Supabase
-const CLOUD={ sdk:null, client:null, user:null, busy:false, msg:"", applying:false, timer:null, lastSync:null, checking:false };
+const CLOUD={ sdk:null, client:null, user:null, busy:false, msg:"", applying:false, timer:null,
+              lastSync:null, checking:false, syncing:false, lastPushed:null, providers:null };
 const AUTHUI={ mode:"in", busy:false, msg:"" };
 function cloudCfg(){ return { url:(S.supaUrl||SUPA_URL_BAKED||"").trim(), key:(S.supaKey||SUPA_KEY_BAKED||"").trim() }; }
 function cloudConfigured(){ const c=cloudCfg(); return !!(c.url&&c.key); }
@@ -2018,35 +2019,55 @@ function mergeState(local,remote){
   out.supaUrl=local.supaUrl; out.supaKey=local.supaKey;                  // connection details stay local
   return out;
 }
+function cloudPayload(){
+  const payload=Object.assign({},S);
+  delete payload.supaUrl; delete payload.supaKey;   // connection details stay on this device
+  if(!S.syncKeys){ delete payload.apiKey; delete payload.gemKey; }
+  return payload;
+}
+/* Upload only. Never re-renders, so background saves can't cause the page to flicker. */
+async function cloudPush(){
+  if(!CLOUD.user||CLOUD.syncing) return;
+  const stamp=S.updatedAt;
+  if(CLOUD.lastPushed===stamp) return;              // nothing new since the last upload
+  CLOUD.syncing=true;
+  try{
+    const cl=await cloudClient();
+    const {error}=await cl.from("progress").upsert({id:CLOUD.user.id,data:cloudPayload(),updated_at:new Date().toISOString()});
+    if(error) throw error;
+    CLOUD.lastPushed=stamp; CLOUD.lastSync=Date.now();
+  }catch(e){ CLOUD.msg="Sync failed: "+(e.message||e); }
+  CLOUD.syncing=false;
+}
+/* Full two-way sync: pull, merge, push. */
 async function cloudSync(silent){
-  if(!CLOUD.user) return;
+  if(!CLOUD.user||CLOUD.syncing) return;
+  CLOUD.syncing=true; CLOUD.applying=true;          // applying blocks save() from queueing more pushes
   CLOUD.busy=true; if(!silent){ CLOUD.msg="Syncing…"; render(); }
+  let changed=false;
   try{
     const cl=await cloudClient();
     const {data,error}=await cl.from("progress").select("data").eq("id",CLOUD.user.id).maybeSingle();
     if(error && error.code!=="PGRST116") throw error;
-    CLOUD.applying=true;
+    const before=JSON.stringify(cloudPayload());
     const merged=mergeState(S,(data&&data.data)||null);
     Object.assign(S,merged);
-    // rebuild the in-memory question bank with any AI questions that arrived
     (S.aiQ||[]).forEach(q=>{ if(!QUESTIONS.some(x=>x.q===q.q)) QUESTIONS.push(q); });
-    CLOUD.applying=false;
-    S.updatedAt=Date.now(); save();
-    const payload=Object.assign({},S);
-    delete payload.supaUrl; delete payload.supaKey;
-    if(!S.syncKeys){ delete payload.apiKey; delete payload.gemKey; }
-    const {error:upErr}=await cl.from("progress").upsert({id:CLOUD.user.id,data:payload,updated_at:new Date().toISOString()});
+    changed = JSON.stringify(cloudPayload())!==before;
+    save();
+    const {error:upErr}=await cl.from("progress").upsert({id:CLOUD.user.id,data:cloudPayload(),updated_at:new Date().toISOString()});
     if(upErr) throw upErr;
-    CLOUD.lastSync=Date.now(); CLOUD.msg="";
+    CLOUD.lastPushed=S.updatedAt; CLOUD.lastSync=Date.now(); CLOUD.msg="";
   }catch(e){ CLOUD.msg="Sync failed: "+(e.message||e); }
-  CLOUD.busy=false; render();
+  CLOUD.applying=false; CLOUD.syncing=false; CLOUD.busy=false;
+  if(!silent||changed) render();                    // silent syncs that pulled nothing don't touch the UI
 }
 function scheduleCloudPush(){
   // save() can fire during start-up migrations, before CLOUD exists — stay silent then
   try{
-    if(!CLOUD.user||CLOUD.applying) return;
+    if(!CLOUD.user||CLOUD.applying||CLOUD.syncing) return;
     clearTimeout(CLOUD.timer);
-    CLOUD.timer=setTimeout(()=>{ cloudSync(true); },4000); // debounce so a quiz doesn't spam the API
+    CLOUD.timer=setTimeout(cloudPush,4000);         // upload-only, so this can't loop back into itself
   }catch(e){ /* not ready yet */ }
 }
 async function cloudAuth(mode){
