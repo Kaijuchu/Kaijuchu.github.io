@@ -560,6 +560,47 @@
   body.light .cursor-glow{opacity:.3}
   .blob,.cursor-glow{will-change:transform}
   @media (prefers-reduced-motion:reduce){.cursor-glow{display:none}}
+  /* ---- welcome / sign-in gate ---- */
+  body.locked #sidebar,body.locked .wrap,body.locked #ai-fab,body.locked #ai-dock{display:none}
+  #welcome:empty{display:none}
+  #welcome{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
+  .welcome-card{width:100%;max-width:404px;border-radius:26px;padding:34px 30px 26px;
+    background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.15);position:relative;
+    backdrop-filter:blur(30px) saturate(1.9);-webkit-backdrop-filter:blur(30px) saturate(1.9);
+    box-shadow:0 30px 80px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.16);
+    animation:dockIn .55s cubic-bezier(.22,.9,.3,1.02) both}
+  .welcome-card::after{content:"";position:absolute;inset:1px;border-radius:inherit;pointer-events:none;
+    background:radial-gradient(75% 60% at 8% -8%,rgba(167,139,250,.20),transparent 66%),
+               radial-gradient(65% 55% at 96% 106%,rgba(125,211,206,.16),transparent 68%);
+    mix-blend-mode:screen}
+  .welcome-card>*{position:relative;z-index:1}
+  .logo-badge.lg{width:60px;height:60px;border-radius:19px;margin:0 auto}
+  .logo-badge.lg .logo-txt{font-size:1.4rem}
+  .welcome-title{font-size:1.5rem;font-weight:800;letter-spacing:-.02em;margin:14px 0 2px}
+  .auth-tabs{display:flex;gap:6px;background:rgba(255,255,255,.05);border:1px solid var(--border);
+    border-radius:999px;padding:4px;margin-bottom:18px}
+  .auth-tabs button{flex:1;background:none;border:none;color:var(--muted);border-radius:999px;
+    padding:9px;font-size:.82rem;font-weight:700;cursor:pointer;transition:.2s;font-family:inherit}
+  .auth-tabs button.on{background:rgba(255,255,255,.12);color:var(--text);box-shadow:inset 0 1px 0 rgba(255,255,255,.15)}
+  .oauth-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;
+    background:rgba(255,255,255,.94);color:#1a1d23;border:none;border-radius:999px;padding:12px;
+    font-size:.86rem;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:9px;transition:.18s;
+    box-shadow:0 6px 18px rgba(0,0,0,.35)}
+  .oauth-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 10px 26px rgba(0,0,0,.45)}
+  .oauth-btn:disabled{opacity:.55;cursor:default}
+  .oauth-btn svg{width:17px;height:17px;flex-shrink:0}
+  .oauth-btn.apple{background:#000;color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+  body.light .oauth-btn{background:#fff;border:1px solid rgba(30,45,80,.16)}
+  .auth-or{display:flex;align-items:center;gap:12px;margin:16px 0;color:var(--muted);
+    font-size:.68rem;text-transform:uppercase;letter-spacing:.16em}
+  .auth-or::before,.auth-or::after{content:"";flex:1;height:1px;background:var(--border)}
+  .welcome-card .inp{width:100%;margin-bottom:10px;border-radius:12px;padding:12px 14px}
+  .auth-link{display:block;width:100%;background:none;border:none;color:var(--muted);
+    font-size:.75rem;cursor:pointer;margin-top:12px;font-family:inherit;text-decoration:underline}
+  .auth-link:hover{color:var(--text)}
+  .auth-note{margin-top:14px;padding:10px 13px;border-radius:12px;font-size:.8rem;line-height:1.5;
+    background:rgba(255,255,255,.06);border:1px solid var(--border);color:#c9d2e0}
+  .auth-foot{margin-top:18px;text-align:center;font-size:.72rem;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -576,6 +617,7 @@
 </button>
 <div id="ai-dock"></div>
 <div id="modal-root"></div>
+<div id="welcome"></div>
 <div class="wrap">
   <header>
     <div style="display:flex;align-items:center;gap:12px">
@@ -796,6 +838,13 @@ function go(t){ tab=t; lab=null; if(quiz&&quiz.done) quiz=null; stop3D(); render
 function render(){ nav();
   if(typeof document!=="undefined"&&document.body)
     document.body.className = (S.theme==="light"?"light ":"")+(S.sbCollapsed?"sb-min ":"")+(sbOpen?"sb-open":"");
+  const gate=document.getElementById("welcome");
+  if(authGateNeeded()||CLOUD.checking){
+    if(gate) gate.innerHTML=welcomeView();
+    if(document.body) document.body.className=(S.theme==="light"?"light ":"")+"locked";
+    return;
+  }
+  if(gate) gate.innerHTML="";
   const el=document.getElementById("app");
   const switched = lastTab!==tab;
   if(tab==="set") el.innerHTML=settingsView();
@@ -1803,9 +1852,14 @@ function init3D(){
    Static site + Supabase = real accounts with no server of your own.
    The anon key is meant to be public; security comes from Row Level Security,
    which restricts every row to the user that owns it. See SUPABASE-SETUP.md. */
-const SUPA_URL_BAKED = "";   // filled in once the project exists
-const SUPA_KEY_BAKED = "";
-const CLOUD={ sdk:null, client:null, user:null, busy:false, msg:"", applying:false, timer:null, lastSync:null };
+/* ---- Baked-in project: visitors never see any of this setup ----
+   The anon key is public by design; Row Level Security is what protects the data. */
+const SUPA_URL_BAKED = "https://vynscxllkbmgdxfpsrwj.supabase.co";
+const SUPA_KEY_BAKED = "sb_publishable_2P0J_2SAUJ1sJyGtyWiGwA_m8VEzuMI";
+const REQUIRE_AUTH   = true;      // everyone signs in before using the app
+const ENABLE_APPLE   = false;     // flip to true once Apple sign-in is configured in Supabase
+const CLOUD={ sdk:null, client:null, user:null, busy:false, msg:"", applying:false, timer:null, lastSync:null, checking:false };
+const AUTHUI={ mode:"in", busy:false, msg:"" };
 function cloudCfg(){ return { url:(S.supaUrl||SUPA_URL_BAKED||"").trim(), key:(S.supaKey||SUPA_KEY_BAKED||"").trim() }; }
 function cloudConfigured(){ const c=cloudCfg(); return !!(c.url&&c.key); }
 
@@ -1829,6 +1883,7 @@ async function cloudClient(){
 }
 async function cloudInit(){
   if(!cloudConfigured()) return;
+  CLOUD.checking=true; render();
   try{
     const cl=await cloudClient();
     // catches the return trip from a Google sign-in redirect as well as normal sessions
@@ -1840,24 +1895,79 @@ async function cloudInit(){
       }else if(event==="SIGNED_OUT"){ CLOUD.user=null; render(); }
     });
     const {data}=await cl.auth.getSession();
-    if(data&&data.session){ CLOUD.user=data.session.user; await cloudSync(true); }
-    render();
-  }catch(e){ CLOUD.msg=e.message; }
+    if(data&&data.session){ CLOUD.user=data.session.user; CLOUD.checking=false; await cloudSync(true); }
+    CLOUD.checking=false; render();
+  }catch(e){ CLOUD.checking=false; CLOUD.msg=e.message; render(); }
 }
-async function cloudGoogle(){
-  CLOUD.busy=true; CLOUD.msg="Redirecting to Google…"; render();
+async function cloudOAuth(provider){
+  AUTHUI.busy=true; AUTHUI.msg="Redirecting…"; CLOUD.busy=true; render();
   try{
     const cl=await cloudClient();
     const back=(typeof location!=="undefined") ? location.origin+location.pathname : undefined;
-    const {error}=await cl.auth.signInWithOAuth({provider:"google",options:{redirectTo:back}});
+    const {error}=await cl.auth.signInWithOAuth({provider:provider,options:{redirectTo:back}});
     if(error) throw error;
   }catch(e){
-    CLOUD.busy=false;
-    CLOUD.msg=/provider is not enabled/i.test(e.message||"")
-      ? "Google sign-in isn't switched on yet — see the Google section in SUPABASE-SETUP.md."
+    AUTHUI.busy=false; CLOUD.busy=false;
+    const name=provider==="apple"?"Apple":"Google";
+    AUTHUI.msg=/provider is not enabled/i.test(e.message||"")
+      ? name+" sign-in isn't switched on yet — see SUPABASE-SETUP.md."
       : (e.message||String(e));
-    render();
+    CLOUD.msg=AUTHUI.msg; render();
   }
+}
+function cloudGoogle(){ return cloudOAuth("google"); }
+function cloudApple(){ return cloudOAuth("apple"); }
+async function cloudResetPassword(){
+  const em=document.getElementById("acc-email");
+  const email=em?em.value.trim():"";
+  if(!email){ AUTHUI.msg="Enter your email address first, then click reset."; render(); return; }
+  AUTHUI.busy=true; AUTHUI.msg="Sending reset email…"; render();
+  try{
+    const cl=await cloudClient();
+    const back=(typeof location!=="undefined") ? location.origin+location.pathname : undefined;
+    const {error}=await cl.auth.resetPasswordForEmail(email,{redirectTo:back});
+    if(error) throw error;
+    AUTHUI.msg="Reset link sent — check your inbox.";
+  }catch(e){ AUTHUI.msg=e.message||String(e); }
+  AUTHUI.busy=false; render();
+}
+/* ---- the sign-in gate everyone sees first ---- */
+function authGateNeeded(){ return REQUIRE_AUTH && cloudConfigured() && !CLOUD.user; }
+function authTab(m){ AUTHUI.mode=m; AUTHUI.msg=""; render(); }
+function welcomeView(){
+  if(CLOUD.checking){
+    return `<div class="welcome-card center">
+      <div class="logo-badge lg"><span class="logo-txt">A+</span></div>
+      <div class="muted" style="margin-top:18px">Checking your session…</div></div>`;
+  }
+  const up=AUTHUI.mode==="up";
+  const note=AUTHUI.msg?`<div class="auth-note">${esc(AUTHUI.msg)}</div>`:"";
+  return `<div class="welcome-card">
+    <div class="center">
+      <div class="logo-badge lg"><span class="logo-txt">A+</span></div>
+      <h1 class="welcome-title">A+ Study Hub</h1>
+      <div class="sub" style="margin-bottom:20px">CompTIA A+ · 220-1201 &amp; 220-1202</div>
+    </div>
+    <div class="auth-tabs">
+      <button class="${up?"":"on"}" onclick="authTab('in')">Sign in</button>
+      <button class="${up?"on":""}" onclick="authTab('up')">Create account</button>
+    </div>
+    <button class="oauth-btn" ${AUTHUI.busy?"disabled":""} onclick="cloudGoogle()">
+      <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.3-2.1 3.5-5.2 3.5-8.8Z"/><path fill="#34A853" d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.9-3c-1 .7-2.3 1.1-4 1.1-3.1 0-5.7-2.1-6.6-4.9H1.4v3.1A12 12 0 0 0 12 24Z"/><path fill="#FBBC05" d="M5.4 14.3a7.2 7.2 0 0 1 0-4.6V6.6H1.4a12 12 0 0 0 0 10.8l4-3.1Z"/><path fill="#EA4335" d="M12 4.8c1.8 0 3.4.6 4.6 1.8l3.5-3.5C17.9 1.2 15.2 0 12 0A12 12 0 0 0 1.4 6.6l4 3.1C6.3 6.9 8.9 4.8 12 4.8Z"/></svg>
+      Continue with Google</button>
+    ${ENABLE_APPLE?`<button class="oauth-btn apple" ${AUTHUI.busy?"disabled":""} onclick="cloudApple()">
+      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M17.6 12.7c0-2.5 2-3.7 2.1-3.8-1.1-1.7-2.9-1.9-3.6-1.9-1.5-.2-3 .9-3.7.9-.8 0-2-.9-3.2-.8-1.7 0-3.2 1-4 2.5-1.7 2.9-.4 7.3 1.2 9.7.8 1.2 1.8 2.5 3 2.4 1.2 0 1.7-.8 3.1-.8 1.4 0 1.8.8 3.1.7 1.3 0 2.1-1.2 2.9-2.3.9-1.3 1.3-2.6 1.3-2.7-.1 0-2.5-1-2.5-3.9ZM15.2 4.6c.7-.8 1.1-1.9 1-3.1-1 0-2.2.7-2.9 1.5-.6.7-1.2 1.9-1 3 1.1.1 2.2-.6 2.9-1.4Z"/></svg>
+      Continue with Apple</button>`:""}
+    <div class="auth-or"><span>or</span></div>
+    <input class="inp" id="acc-email" type="email" placeholder="Email address" autocomplete="username">
+    <input class="inp" id="acc-pass" type="password" placeholder="${up?"Choose a password (6+ characters)":"Password"}"
+      autocomplete="${up?"new-password":"current-password"}" onkeydown="if(event.key==='Enter')cloudAuth('${up?"up":"in"}')">
+    <button class="btn" style="width:100%;justify-content:center" ${AUTHUI.busy?"disabled":""}
+      onclick="cloudAuth('${up?"up":"in"}')">${AUTHUI.busy?"Please wait…":(up?"Create account":"Sign in")}</button>
+    ${up?"":`<button class="auth-link" onclick="cloudResetPassword()">Forgot your password?</button>`}
+    ${note}
+    <div class="auth-foot">Your progress syncs across every device you sign in on.</div>
+  </div>`;
 }
 /* ---- merge: counters take the higher value, settings follow the newer device ---- */
 function mergeState(local,remote){
@@ -1928,23 +2038,24 @@ function scheduleCloudPush(){
 async function cloudAuth(mode){
   const em=document.getElementById("acc-email"), pw=document.getElementById("acc-pass");
   const email=em?em.value.trim():"", pass=pw?pw.value:"";
-  if(!email||!pass){ CLOUD.msg="Enter an email and password."; render(); return; }
-  if(mode==="up"&&pass.length<6){ CLOUD.msg="Password must be at least 6 characters."; render(); return; }
-  CLOUD.busy=true; CLOUD.msg=mode==="up"?"Creating account…":"Signing in…"; render();
+  if(!email||!pass){ AUTHUI.msg="Enter an email and password."; CLOUD.msg=AUTHUI.msg; render(); return; }
+  if(mode==="up"&&pass.length<6){ AUTHUI.msg="Password must be at least 6 characters."; CLOUD.msg=AUTHUI.msg; render(); return; }
+  CLOUD.busy=true; AUTHUI.busy=true; AUTHUI.msg=mode==="up"?"Creating account…":"Signing in…"; CLOUD.msg=AUTHUI.msg; render();
   try{
     const cl=await cloudClient();
     const {data,error}= mode==="up"
       ? await cl.auth.signUp({email,password:pass})
       : await cl.auth.signInWithPassword({email,password:pass});
     if(error) throw error;
-    if(!data.session && mode==="up"){ CLOUD.busy=false; CLOUD.msg="Account created — check your email to confirm, then sign in."; render(); return; }
-    CLOUD.user=data.user; CLOUD.msg=""; CLOUD.busy=false;
+    if(!data.session && mode==="up"){ CLOUD.busy=false; AUTHUI.busy=false; AUTHUI.mode="in";
+      AUTHUI.msg="Account created — check your email to confirm, then sign in."; CLOUD.msg=AUTHUI.msg; render(); return; }
+    CLOUD.user=data.user; CLOUD.msg=""; AUTHUI.msg=""; CLOUD.busy=false; AUTHUI.busy=false;
     await cloudSync();
-  }catch(e){ CLOUD.busy=false; CLOUD.msg=(e.message||String(e)); render(); }
+  }catch(e){ CLOUD.busy=false; AUTHUI.busy=false; AUTHUI.msg=(e.message||String(e)); CLOUD.msg=AUTHUI.msg; render(); }
 }
 async function cloudSignOut(){
   try{ const cl=await cloudClient(); await cl.auth.signOut(); }catch(e){}
-  CLOUD.user=null; CLOUD.msg="Signed out — your progress stays on this device."; render();
+  CLOUD.user=null; AUTHUI.mode="in"; AUTHUI.msg=""; CLOUD.msg=""; render();
 }
 function saveCloudCfg(){
   S.supaUrl=document.getElementById("supa-url").value.trim();
