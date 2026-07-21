@@ -1881,9 +1881,20 @@ async function cloudClient(){
   CLOUD.client=sdk.createClient(c.url,c.key);
   return CLOUD.client;
 }
+/* Ask the project which sign-in methods are actually switched on, so we never show
+   a button that dead-ends on Supabase's "provider is not enabled" JSON page. */
+async function fetchProviders(){
+  const c=cloudCfg();
+  try{
+    const r=await fetch(c.url.replace(/\/+$/,"")+"/auth/v1/settings?apikey="+encodeURIComponent(c.key));
+    const j=await r.json(); const x=j.external||{};
+    CLOUD.providers={ google:!!x.google, apple:!!x.apple, email:x.email!==false, signups:!j.disable_signup };
+  }catch(e){ CLOUD.providers={google:false,apple:false,email:true,signups:true}; }
+}
 async function cloudInit(){
   if(!cloudConfigured()) return;
   CLOUD.checking=true; render();
+  await fetchProviders();
   try{
     const cl=await cloudClient();
     // catches the return trip from a Google sign-in redirect as well as normal sessions
@@ -1942,6 +1953,9 @@ function welcomeView(){
   }
   const up=AUTHUI.mode==="up";
   const note=AUTHUI.msg?`<div class="auth-note">${esc(AUTHUI.msg)}</div>`:"";
+  const P=CLOUD.providers||{email:true};
+  const showGoogle=!!P.google, showApple=!!P.apple&&ENABLE_APPLE!==false||!!P.apple;
+  const anyOAuth=showGoogle||showApple;
   return `<div class="welcome-card">
     <div class="center">
       <div class="logo-badge lg"><span class="logo-txt">A+</span></div>
@@ -1952,13 +1966,13 @@ function welcomeView(){
       <button class="${up?"":"on"}" onclick="authTab('in')">Sign in</button>
       <button class="${up?"on":""}" onclick="authTab('up')">Create account</button>
     </div>
-    <button class="oauth-btn" ${AUTHUI.busy?"disabled":""} onclick="cloudGoogle()">
+    ${showGoogle?`<button class="oauth-btn" ${AUTHUI.busy?"disabled":""} onclick="cloudGoogle()">
       <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.3-2.1 3.5-5.2 3.5-8.8Z"/><path fill="#34A853" d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.9-3c-1 .7-2.3 1.1-4 1.1-3.1 0-5.7-2.1-6.6-4.9H1.4v3.1A12 12 0 0 0 12 24Z"/><path fill="#FBBC05" d="M5.4 14.3a7.2 7.2 0 0 1 0-4.6V6.6H1.4a12 12 0 0 0 0 10.8l4-3.1Z"/><path fill="#EA4335" d="M12 4.8c1.8 0 3.4.6 4.6 1.8l3.5-3.5C17.9 1.2 15.2 0 12 0A12 12 0 0 0 1.4 6.6l4 3.1C6.3 6.9 8.9 4.8 12 4.8Z"/></svg>
-      Continue with Google</button>
-    ${ENABLE_APPLE?`<button class="oauth-btn apple" ${AUTHUI.busy?"disabled":""} onclick="cloudApple()">
+      Continue with Google</button>`:""}
+    ${showApple?`<button class="oauth-btn apple" ${AUTHUI.busy?"disabled":""} onclick="cloudApple()">
       <svg viewBox="0 0 24 24"><path fill="currentColor" d="M17.6 12.7c0-2.5 2-3.7 2.1-3.8-1.1-1.7-2.9-1.9-3.6-1.9-1.5-.2-3 .9-3.7.9-.8 0-2-.9-3.2-.8-1.7 0-3.2 1-4 2.5-1.7 2.9-.4 7.3 1.2 9.7.8 1.2 1.8 2.5 3 2.4 1.2 0 1.7-.8 3.1-.8 1.4 0 1.8.8 3.1.7 1.3 0 2.1-1.2 2.9-2.3.9-1.3 1.3-2.6 1.3-2.7-.1 0-2.5-1-2.5-3.9ZM15.2 4.6c.7-.8 1.1-1.9 1-3.1-1 0-2.2.7-2.9 1.5-.6.7-1.2 1.9-1 3 1.1.1 2.2-.6 2.9-1.4Z"/></svg>
       Continue with Apple</button>`:""}
-    <div class="auth-or"><span>or</span></div>
+    ${anyOAuth?`<div class="auth-or"><span>or</span></div>`:""}
     <input class="inp" id="acc-email" type="email" placeholder="Email address" autocomplete="username">
     <input class="inp" id="acc-pass" type="password" placeholder="${up?"Choose a password (6+ characters)":"Password"}"
       autocomplete="${up?"new-password":"current-password"}" onkeydown="if(event.key==='Enter')cloudAuth('${up?"up":"in"}')">
