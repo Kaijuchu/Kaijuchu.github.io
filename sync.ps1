@@ -109,5 +109,5 @@ if ($LASTEXITCODE -ne 0) {
 }
 Say ""
 Say "  Synced. Live site updates in about a minute:" Green
-Say "  https://kaijuchu.github.io/CompTIA-A-Study-Hub/" Green
+Say "  https://kaijuchu.github.io" Green
 if (-not $Quiet) { Start-Sleep 4 }

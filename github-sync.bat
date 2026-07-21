@@ -35,7 +35,7 @@ echo Nothing chosen. & pause & exit /b
 
 :setup
 echo.
-set /p url=Paste your repo URL (e.g. https://github.com/Kaijuchu/CompTIA-A-Study-Hub.git):
+set /p url=Paste your repo URL (e.g. https://github.com/Kaijuchu/Kaijuchu.github.io.git):
 if "%url%"=="" (echo No URL given. & pause & exit /b 1)
 if not exist ".git" (
     "%GIT%" init -b main >nul
