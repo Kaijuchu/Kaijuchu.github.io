@@ -75,18 +75,21 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0sync.ps1"
 exit /b
 
 :enable
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
- "$a=New-ScheduledTaskAction -Execute 'wscript.exe' -Argument ('\"%~dp0sync-quiet.vbs\"');" ^
- "$t1=New-ScheduledTaskTrigger -AtLogOn;" ^
- "$t2=New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 15);" ^
- "$s=New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries;" ^
- "Register-ScheduledTask -TaskName 'APlusStudyHubSync' -Action $a -Trigger $t1,$t2 -Settings $s -Force | Out-Null"
-if errorlevel 1 (echo Couldn't create the task. & pause & exit /b 1)
+if not exist ".git" (echo Run option 1 first. & pause & exit /b 1)
+powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Startup')+'\APlusStudyHubSync.lnk');$s.TargetPath='%~dp0start-sync-hidden.vbs';$s.WorkingDirectory='%~dp0';$s.Save()"
+call :stoploop
+wscript "%~dp0start-sync-hidden.vbs"
 echo.
-echo Auto-sync enabled - changes push automatically every 15 minutes.
+echo Auto-sync enabled - running now, and it starts automatically at every login.
+echo Changes are committed and pushed every 15 minutes.
 pause & exit /b
 
 :disable
-schtasks /delete /tn "APlusStudyHubSync" /f >nul 2>nul
-echo Auto-sync disabled.
+del "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\APlusStudyHubSync.lnk" 2>nul
+call :stoploop
+echo Auto-sync disabled. Use option 2 to sync manually.
 pause & exit /b
+
+:stoploop
+powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='powershell.exe'\" | Where-Object { $_.CommandLine -like '*sync-loop.ps1*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }" >nul 2>nul
+exit /b
