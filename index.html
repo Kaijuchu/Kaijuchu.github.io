@@ -524,10 +524,46 @@
     background-size:300% auto;background-repeat:repeat;
     -webkit-background-clip:text;background-clip:text;color:transparent;
     animation:logoSweep 9s linear infinite}
+  /* ---- v5: layout polish, collapsed rail, cursor-reactive background ---- */
+  /* only SIDEBAR labels hide when collapsed (this was also hiding the AI button's label) */
+  body.sb-min .lbl{display:inline}
+  body.sb-min #sidebar .lbl{display:none}
+  /* tidy collapsed rail */
+  body.sb-min #sidebar{width:76px;padding:16px 12px;align-items:center}
+  body.sb-min .wrap{margin-left:96px}
+  body.sb-min .sb-top{flex-direction:column;gap:12px;margin-bottom:18px;width:100%}
+  body.sb-min .logo-badge{width:40px;height:40px;border-radius:12px}
+  body.sb-min .logo-badge .logo-txt{font-size:.9rem}
+  body.sb-min #nav{gap:10px;width:100%;align-items:center}
+  body.sb-min #nav button{width:52px;height:52px;padding:0;justify-content:center;border-radius:50%}
+  body.sb-min #nav .ico{width:100%;height:100%;background:transparent;box-shadow:none}
+  body.sb-min #nav .ico svg{width:19px;height:19px}
+  body.sb-min #nav button.active .ico{background:transparent}
+  .sb-collapse{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9px}
+  .sb-collapse svg{width:15px;height:15px;transition:transform .25s}
+  /* use the empty space: centre content in the area beside the sidebar */
+  .wrap{max-width:none;padding:16px 34px 90px}
+  header,#app{max-width:1080px;margin-left:auto;margin-right:auto}
+  /* softer card corners + single clean edge */
+  .card{border-color:rgba(255,255,255,.11);
+    box-shadow:0 18px 50px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.09)}
+  .card::after{inset:1px;
+    background:radial-gradient(80% 70% at 10% -10%,rgba(167,139,250,.13),transparent 70%),
+               radial-gradient(70% 65% at 96% 110%,rgba(125,211,206,.11),transparent 72%);
+    opacity:.85}
+  .card:hover{box-shadow:0 22px 60px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.13)}
+  /* cursor-reactive background */
+  .cursor-glow{position:absolute;width:46vmax;height:46vmax;left:0;top:0;margin:-23vmax 0 0 -23vmax;
+    border-radius:50%;pointer-events:none;opacity:.5;filter:blur(70px);
+    background:radial-gradient(circle,rgba(167,139,250,.40),rgba(125,211,206,.16) 45%,transparent 70%);
+    transform:translate3d(50vw,50vh,0)}
+  body.light .cursor-glow{opacity:.3}
+  .blob,.cursor-glow{will-change:transform}
+  @media (prefers-reduced-motion:reduce){.cursor-glow{display:none}}
 </style>
 </head>
 <body>
-<div class="bg-blobs"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+<div class="bg-blobs"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="cursor-glow" id="cglow"></div></div>
 <aside id="sidebar">
   <div class="sb-top">
     <span class="sb-brand"><span class="logo-badge"><span class="logo-txt">A+</span></span><span class="lbl">Study Hub</span></span>
@@ -539,6 +575,7 @@
   <span class="ico"></span><span class="lbl">AI Tutor</span>
 </button>
 <div id="ai-dock"></div>
+<div id="modal-root"></div>
 <div class="wrap">
   <header>
     <div style="display:flex;align-items:center;gap:12px">
@@ -698,14 +735,29 @@ S.feedback=S.feedback||"each"; S.examDate=S.examDate||""; S.dailyGoal=S.dailyGoa
 S.daily=S.daily||{date:"",count:0}; S.streak=S.streak||{count:0,last:""}; S.sbCollapsed=!!S.sbCollapsed;
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 QUESTIONS.push(...S.aiQ);   // restore AI-generated questions from previous sessions
-function save(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} }
-function qs(i){ return S.qstats[i] || (S.qstats[i]={seen:0,right:0,wrong:0,lastWrong:false}); }
+function save(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){ console.warn("Could not save progress:",e); } }
+/* Stats are keyed by a hash of the question text, not its position in the array,
+   so adding questions in a future update never scrambles existing progress. */
+function qkey(q){ let h=0; const s=q.q||""; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return "q"+(h>>>0).toString(36); }
+function qs(q){ const k=qkey(q); return S.qstats[k] || (S.qstats[k]={seen:0,right:0,wrong:0,lastWrong:false}); }
+function qstat(q){ return S.qstats[qkey(q)]; }
+(function migrateStats(){
+  const keys=Object.keys(S.qstats||{});
+  if(!keys.some(k=>/^\d+$/.test(k))) return;      // already migrated
+  const next={};
+  keys.forEach(k=>{
+    if(/^\d+$/.test(k)){ const q=QUESTIONS[+k]; if(q) next[qkey(q)]=S.qstats[k]; }
+    else next[k]=S.qstats[k];
+  });
+  S.qstats=next; save();
+})();
 
 function domainStats(id){
   let seen=0,right=0;
-  QUESTIONS.forEach((q,i)=>{ if(q.d===id && S.qstats[i]){ seen+=S.qstats[i].seen; right+=S.qstats[i].right; }});
+  QUESTIONS.forEach(q=>{ const st=qstat(q); if(q.d===id && st){ seen+=st.seen; right+=st.right; }});
   return {seen, right, acc: seen? right/seen : null};
 }
+function missedList(){ return QUESTIONS.map((q,i)=>({...q,i})).filter(q=>{ const st=qstat(q); return st && st.lastWrong; }); }
 function gapScores(){
   return DOMAINS.map(d=>{
     const st=domainStats(d.id);
@@ -732,7 +784,8 @@ function nav(){
   const justSwitched = lastTab!==null && lastTab!==tab;
   document.getElementById("nav").innerHTML = TABS.map(([id,label])=>
     `<button class="${tab===id?'active':''}${tab===id&&justSwitched?' just-active':''}" title="${label}" onclick="sbOpen=false;go('${id}')"><span class="ico">${NAV_ICONS[id]||"•"}</span><span class="lbl">${label}</span></button>`).join("");
-  const c=document.getElementById("sb-col"); if(c) c.textContent=S.sbCollapsed?"⟩":"⟨";
+  const c=document.getElementById("sb-col");
+  if(c) c.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${S.sbCollapsed?180:0}deg)"><path d="M15 5l-7 7 7 7"/></svg>`;
   const fab=document.getElementById("ai-fab");
   if(fab){ const i=fab.querySelector(".ico"); if(i&&!i.innerHTML) i.innerHTML=NAV_ICONS.ai; }
 }
@@ -767,7 +820,7 @@ function dashView(){
   const totalSeen=Object.values(S.qstats).reduce((s,q)=>s+q.seen,0);
   const totalRight=Object.values(S.qstats).reduce((s,q)=>s+q.right,0);
   const overall= totalSeen? Math.round(100*totalRight/totalSeen):null;
-  const missed=QUESTIONS.filter((q,i)=>S.qstats[i]&&S.qstats[i].lastWrong).length;
+  const missed=missedList().length;
   const bars=c=>DOMAINS.filter(d=>d.core===c).map(d=>{
     const st=domainStats(d.id); const pct= st.acc===null?0:Math.round(st.acc*100);
     return `<div class="bar-row"><div class="bar-label"><span>${d.name} <span class="pct">· ${d.weight}% of exam</span></span>
@@ -806,7 +859,7 @@ function pool(ids){ return QUESTIONS.map((q,i)=>({...q,i})).filter(q=>ids.includ
 function startQuiz(mode){
   let items=[];
   if(mode==="quick"){ items=shuffle(pool(S.focus.length?S.focus:DOMAINS.map(d=>d.id))).slice(0,S.quizLen); }
-  else if(mode==="missed"){ items=shuffle(QUESTIONS.map((q,i)=>({...q,i})).filter(q=>S.qstats[q.i]&&S.qstats[q.i].lastWrong)); }
+  else if(mode==="missed"){ items=shuffle(missedList()); }
   else if(mode==="core1"||mode==="core2"){
     const core=mode==="core2"?2:1, n=20;
     const doms=DOMAINS.filter(d=>d.core===core);
@@ -828,13 +881,15 @@ function startGapQuiz(){
 }
 function answer(k){
   if(quiz.answered!==null) return;
-  const q=quiz.items[quiz.idx], st=qs(q.i), ok=(k===q.a);
+  const q=quiz.items[quiz.idx], st=qs(q), ok=(k===q.a);
   quiz.answered=k; st.seen++; ok?(st.right++,quiz.right++):st.wrong++;
   st.lastWrong=!ok; quiz.results.push({q,ok});
   const t=todayStr();
-  if(S.daily.date!==t) S.daily={date:t,count:0};
+  if(S.daily.date!==t) S.daily={date:t,count:0,hit:false};
   S.daily.count++;
-  if(S.daily.count===S.dailyGoal){
+  // >= (not ===) so lowering your goal mid-day still counts; hit flag stops double-counting
+  if(!S.daily.hit && S.daily.count>=S.dailyGoal){
+    S.daily.hit=true;
     const y=new Date(Date.now()-864e5).toISOString().slice(0,10);
     S.streak.count = S.streak.last===y ? S.streak.count+1 : 1;
     S.streak.last=t;
@@ -847,7 +902,7 @@ function nextQ(){
   render();
 }
 function quizSetupView(){
-  const missed=QUESTIONS.filter((q,i)=>S.qstats[i]&&S.qstats[i].lastWrong).length;
+  const missed=missedList().length;
   const focusNames=S.focus.length===DOMAINS.length?"All domains":DOMAINS.filter(d=>S.focus.includes(d.id)).map(d=>d.name).join(", ");
   return `
   <div class="card"><h2>Practice modes</h2>
@@ -1018,8 +1073,9 @@ async function callClaude(messages, system, maxTokens){
       body:JSON.stringify({ model:S.model, max_tokens:maxTokens||800, system, messages })
     });
   }catch(err){ throw new Error(FETCH_HELP); }
-  const j = await r.json();
+  let j; try{ j = await r.json(); }catch(e){ throw new Error("Anthropic returned an unreadable response (HTTP "+r.status+"). Try again in a moment."); }
   if(j.error) throw new Error(j.error.message||"API error");
+  if(!j.content) throw new Error("No response returned (HTTP "+r.status+").");
   return j.content.map(b=>b.text||"").join("");
 }
 async function callGemini(messages, system, maxTokens){
@@ -1033,7 +1089,7 @@ async function callGemini(messages, system, maxTokens){
         generationConfig:{maxOutputTokens:maxTokens||800}
       })});
   }catch(err){ throw new Error(FETCH_HELP); }
-  const j = await r.json();
+  let j; try{ j = await r.json(); }catch(e){ throw new Error("Gemini returned an unreadable response (HTTP "+r.status+"). Try again in a moment."); }
   if(j.error) throw new Error((j.error.message||"Gemini API error")+(String(j.error.message||"").includes("quota")?" — free-tier limit hit; wait a minute and retry.":""));
   const cand=j.candidates&&j.candidates[0];
   if(!cand||!cand.content||!cand.content.parts) throw new Error("Gemini returned no text (possibly rate-limited or blocked) — wait a moment and retry.");
@@ -1606,11 +1662,47 @@ function init3D(){
   })();
 }
 
+/* ================= CURSOR-REACTIVE BACKGROUND ================= */
+(function(){
+  if(typeof window==="undefined"||typeof document==="undefined") return;
+  if(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const state={tx:.5,ty:.5,x:.5,y:.5,raf:null};
+  window.addEventListener("pointermove",e=>{
+    state.tx=e.clientX/window.innerWidth;
+    state.ty=e.clientY/window.innerHeight;
+    if(!state.raf) loop();
+  },{passive:true});
+  function loop(){
+    // ease toward the pointer so motion feels like liquid, not a cursor attachment
+    state.x+=(state.tx-state.x)*.06;
+    state.y+=(state.ty-state.y)*.06;
+    const w=window.innerWidth,h=window.innerHeight;
+    const g=document.getElementById("cglow");
+    if(g) g.style.transform=`translate3d(${state.x*w}px,${state.y*h}px,0)`;
+    // blobs drift against the pointer at different depths (parallax)
+    const dx=(state.x-.5),dy=(state.y-.5);
+    const depths=[[-34,-24],[26,18],[-18,26]];
+    document.querySelectorAll(".blob").forEach((b,i)=>{
+      const d=depths[i]||[0,0];
+      b.style.setProperty("--px",(dx*d[0]).toFixed(2)+"px");
+      b.style.setProperty("--py",(dy*d[1]).toFixed(2)+"px");
+      b.style.translate=`${(dx*d[0]).toFixed(2)}px ${(dy*d[1]).toFixed(2)}px`;
+    });
+    const near=Math.abs(state.tx-state.x)+Math.abs(state.ty-state.y);
+    if(near>.0008){ state.raf=requestAnimationFrame(loop); } else { state.raf=null; }
+  }
+})();
+
 /* ================= MISC ================= */
 function confirmReset(){
-  if(confirm("Reset all progress? This clears every stat and missed-question record.")){
-    S={focus:DOMAINS.map(d=>d.id),qstats:{},sessions:0}; save(); go("dash");
-  }
+  if(!confirm("Reset all progress?\n\nThis clears your stats, missed questions, streak and AI-generated questions.\nYour API key, theme and preferences are kept.")) return;
+  // merge over the existing state so settings survive and no required field goes missing
+  Object.assign(S,{
+    focus:DOMAINS.map(d=>d.id), qstats:{}, sessions:0, aiQ:[],
+    daily:{date:"",count:0,hit:false}, streak:{count:0,last:""}
+  });
+  for(let i=QUESTIONS.length-1;i>=0;i--) if(QUESTIONS[i].ai) QUESTIONS.splice(i,1);
+  save(); quiz=null; lab=null; go("dash");
 }
 render();
 </script>
