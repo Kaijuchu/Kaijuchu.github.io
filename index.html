@@ -778,8 +778,20 @@ S.feedback=S.feedback||"each"; S.examDate=S.examDate||""; S.dailyGoal=S.dailyGoa
 S.daily=S.daily||{date:"",count:0}; S.streak=S.streak||{count:0,last:""}; S.sbCollapsed=!!S.sbCollapsed;
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 QUESTIONS.push(...S.aiQ);   // restore AI-generated questions from previous sessions
-function save(){ S.updatedAt=Date.now(); try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){ console.warn("Could not save progress:",e); }
-  if(typeof scheduleCloudPush==="function") scheduleCloudPush(); }
+let SAVE_FAILED=false;
+function save(){
+  S.updatedAt=Date.now();
+  try{ localStorage.setItem(KEY,JSON.stringify(S)); SAVE_FAILED=false; }
+  catch(e){
+    SAVE_FAILED=true; console.warn("Could not save progress:",e);
+    // most likely the 5MB browser quota — trim generated questions and retry once
+    if(S.aiQ&&S.aiQ.length>50){
+      S.aiQ=S.aiQ.slice(-50);
+      try{ localStorage.setItem(KEY,JSON.stringify(S)); SAVE_FAILED=false; }catch(e2){}
+    }
+  }
+  if(typeof scheduleCloudPush==="function") scheduleCloudPush();
+}
 /* Stats are keyed by a hash of the question text, not its position in the array,
    so adding questions in a future update never scrambles existing progress. */
 function qkey(q){ let h=0; const s=q.q||""; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return "q"+(h>>>0).toString(36); }
@@ -1039,22 +1051,22 @@ function quizView(){
   const q=quiz.items[quiz.idx], dom=DOMAINS.find(d=>d.id===q.d), a=quiz.answered;
   return `<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
-      <div class="qnum">Question ${quiz.idx+1} of ${quiz.items.length} · ${dom.name}<span class="tag ${dom.core===1?'c1':'c2'}">Core ${dom.core}</span></div>
+      <div class="qnum">Question ${quiz.idx+1} of ${quiz.items.length} · ${esc(dom.name)}<span class="tag ${dom.core===1?'c1':'c2'}">Core ${dom.core}</span></div>
       <button class="ai-close" title="End quiz" onclick="endQuiz()">✕</button>
     </div>
-    <div class="question">${q.q}</div>
+    <div class="question">${esc(q.q)}</div>
     ${(q.perm||[0,1,2,3]).map((oi,pos)=>{
       let cls="opt";
       if(a!==null){
         if(S.feedback==="end"){ if(oi===a)cls+=" sel"; }
         else { if(oi===q.a)cls+=" correct"; else if(oi===a)cls+=" wrong"; }
       }
-      return `<button class="${cls}" ${a!==null?"disabled":""} onclick="answer(${oi})">${String.fromCharCode(65+pos)}. ${q.o[oi]}</button>`;
+      return `<button class="${cls}" ${a!==null?"disabled":""} onclick="answer(${oi})">${String.fromCharCode(65+pos)}. ${esc(q.o[oi])}</button>`;
     }).join("")}
     ${a!==null?( S.feedback==="end"
       ? `<div class="muted" style="margin:6px 0 12px">Answer recorded — results at the end, like the real exam.</div>
          <button class="btn" onclick="nextQ()">${quiz.idx+1>=quiz.items.length?"Finish":"Next question"}</button>`
-      : `<div class="explain">${a===q.a?OKI+" Correct. ":BADI+" Not quite. "}${q.e}</div>
+      : `<div class="explain">${a===q.a?OKI+" Correct. ":BADI+" Not quite. "}${esc(q.e)}</div>
       <div class="row">
         <button class="btn" onclick="nextQ()">${quiz.idx+1>=quiz.items.length?"Finish":"Next question"}</button>
         <button class="btn secondary" onclick="askAboutQ()">${ic("sparkles")} Ask AI about this</button>
@@ -1857,7 +1869,6 @@ function init3D(){
 const SUPA_URL_BAKED = "https://vynscxllkbmgdxfpsrwj.supabase.co";
 const SUPA_KEY_BAKED = "sb_publishable_2P0J_2SAUJ1sJyGtyWiGwA_m8VEzuMI";
 const REQUIRE_AUTH   = true;      // everyone signs in before using the app
-const ENABLE_APPLE   = false;     // flip to true once Apple sign-in is configured in Supabase
 const CLOUD={ sdk:null, client:null, user:null, busy:false, msg:"", applying:false, timer:null,
               lastSync:null, checking:false, syncing:false, lastPushed:null, providers:null };
 const AUTHUI={ mode:"in", busy:false, msg:"" };
@@ -1955,7 +1966,7 @@ function welcomeView(){
   const up=AUTHUI.mode==="up";
   const note=AUTHUI.msg?`<div class="auth-note">${esc(AUTHUI.msg)}</div>`:"";
   const P=CLOUD.providers||{email:true};
-  const showGoogle=!!P.google, showApple=!!P.apple&&ENABLE_APPLE!==false||!!P.apple;
+  const showGoogle=!!P.google, showApple=!!P.apple;
   const anyOAuth=showGoogle||showApple;
   return `<div class="welcome-card">
     <div class="center">
@@ -2017,6 +2028,8 @@ function mergeState(local,remote){
   out.session = (quiz&&!quiz.done) ? lsn : ((lsn&&rsn) ? ((lsn.at||0)>=(rsn.at||0)?lsn:rsn) : (lsn||rsn||null));
   if(!S.syncKeys){ out.apiKey=local.apiKey; out.gemKey=local.gemKey; }   // per-device opt-out
   out.supaUrl=local.supaUrl; out.supaKey=local.supaKey;                  // connection details stay local
+  out.userId=local.userId;
+  if(out.aiQ.length>400) out.aiQ=out.aiQ.slice(-400);                    // keep storage bounded
   return out;
 }
 function cloudPayload(){
@@ -2024,6 +2037,12 @@ function cloudPayload(){
   delete payload.supaUrl; delete payload.supaKey;   // connection details stay on this device
   if(!S.syncKeys){ delete payload.apiKey; delete payload.gemKey; }
   return payload;
+}
+/* Fingerprint of the data a user would actually notice changing — bookkeeping
+   fields are excluded so a sync that pulled nothing new never redraws the page. */
+function syncFingerprint(){
+  const x=cloudPayload(); delete x.updatedAt; delete x.userId;
+  return JSON.stringify(x);
 }
 /* Upload only. Never re-renders, so background saves can't cause the page to flicker. */
 async function cloudPush(){
@@ -2049,11 +2068,21 @@ async function cloudSync(silent){
     const cl=await cloudClient();
     const {data,error}=await cl.from("progress").select("data").eq("id",CLOUD.user.id).maybeSingle();
     if(error && error.code!=="PGRST116") throw error;
-    const before=JSON.stringify(cloudPayload());
+    const before=syncFingerprint();
+    // If a DIFFERENT account signs in on this device, never merge the previous person's
+    // progress into theirs — adopt the incoming account's data instead.
+    if(S.userId && S.userId!==CLOUD.user.id){
+      Object.assign(S,{ qstats:{}, sessions:0, aiQ:[], session:null,
+        daily:{date:"",count:0,hit:false}, streak:{count:0,last:""}, updatedAt:0 });
+      for(let i=QUESTIONS.length-1;i>=0;i--) if(QUESTIONS[i].ai) QUESTIONS.splice(i,1);
+      if(!S.syncKeys){ S.apiKey=""; S.gemKey=""; }
+      quiz=null;
+    }
+    S.userId=CLOUD.user.id;
     const merged=mergeState(S,(data&&data.data)||null);
     Object.assign(S,merged);
     (S.aiQ||[]).forEach(q=>{ if(!QUESTIONS.some(x=>x.q===q.q)) QUESTIONS.push(q); });
-    changed = JSON.stringify(cloudPayload())!==before;
+    changed = syncFingerprint()!==before;
     save();
     const {error:upErr}=await cl.from("progress").upsert({id:CLOUD.user.id,data:cloudPayload(),updated_at:new Date().toISOString()});
     if(upErr) throw upErr;
