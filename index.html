@@ -503,6 +503,27 @@
   @media(max-width:760px){
     #ai-panel,body.sb-min #ai-panel{left:10px;right:10px;width:auto;max-width:none;bottom:10px}
   }
+  /* ---- v4.1: no icon shine, thicker ring, AI dock on the right, seamless logo loop ---- */
+  #nav button.active .ico::after{display:none}
+  #nav button.active::before{inset:-1.5px;padding:2.4px}
+  #nav button.active::after{inset:-1.5px;padding:2.4px;filter:blur(.45px) drop-shadow(0 0 5px rgba(255,255,255,.65))}
+  #nav button.just-active .ico::before{display:block;border:none;-webkit-mask:none;mask:none;
+    background:radial-gradient(circle,rgba(255,255,255,.4),transparent 70%);animation:ripple .6s ease-out}
+  /* AI button + panel: bottom-right */
+  #ai-fab{position:fixed;right:22px;bottom:22px;left:auto;width:auto;z-index:45;padding:10px 16px 10px 10px}
+  body.sb-min #ai-fab{justify-content:flex-start;padding:10px 16px 10px 10px}
+  #ai-panel,body.sb-min #ai-panel{left:auto;right:22px;bottom:88px;max-width:calc(100vw - 44px)}
+  @media(max-width:760px){
+    #ai-fab{right:12px;bottom:12px}
+    #ai-panel,body.sb-min #ai-panel{left:10px;right:10px;bottom:76px;width:auto;max-width:none}
+  }
+  /* seamless logo shimmer: gradient tiles, travel = exactly one tile */
+  @keyframes logoSweep{from{background-position:0% center}to{background-position:150% center}}
+  .logo-txt,body.light .logo-txt{
+    background:linear-gradient(110deg,#f4f4f5 0 30%,#ff5d6c 40%,#ffb84d 47%,#3ddc84 53%,#4fc3f7 59%,#7c5cfc 66%,#f4f4f5 76% 100%);
+    background-size:300% auto;background-repeat:repeat;
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    animation:logoSweep 9s linear infinite}
 </style>
 </head>
 <body>
@@ -513,11 +534,10 @@
     <button class="sb-collapse" id="sb-col" onclick="toggleSb()" title="Collapse sidebar">⟨</button>
   </div>
   <nav id="nav"></nav>
-  <div class="sb-spacer"></div>
-  <button id="ai-fab" onclick="toggleAi()" title="AI Tutor — knows what you're working on">
-    <span class="ico"></span><span class="lbl">AI Tutor</span>
-  </button>
 </aside>
+<button id="ai-fab" onclick="toggleAi()" title="AI Tutor — knows what you're working on">
+  <span class="ico"></span><span class="lbl">AI Tutor</span>
+</button>
 <div id="ai-dock"></div>
 <div class="wrap">
   <header>
