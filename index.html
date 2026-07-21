@@ -1624,52 +1624,143 @@ function cableView(){
     <div class="explain" style="margin-top:12px">${ic("pencil")} Exam: ${c.tip}</div>
   </div>`;
 }
+/* ---- geometry helpers ---- */
 function M(color,opts){ return new THREE.MeshStandardMaterial(Object.assign({color,roughness:.45,metalness:.25},opts||{})); }
+function Metal(color,shine){ return new THREE.MeshPhongMaterial({color:color,specular:0xffffff,shininess:shine||95,reflectivity:1}); }
 function box(g,w,h,d,x,y,z,mat){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat); m.position.set(x,y,z); g.add(m); return m; }
-function cyl(g,rt,rb,h,x,y,z,mat,seg,rotZ){ const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg||24),mat); m.position.set(x,y,z); if(rotZ!==undefined)m.rotation.z=rotZ; g.add(m); return m; }
+/* cylinder laid along the Z axis (the direction every connector points) */
+function tube(g,rt,rb,len,x,y,z,mat,seg){
+  const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,len,seg||28),mat);
+  m.rotation.x=Math.PI/2; m.position.set(x,y,z); g.add(m); return m;
+}
+function ring(g,r,t,x,y,z,mat){
+  const m=new THREE.Mesh(new THREE.TorusGeometry(r,t,10,28),mat); m.position.set(x,y,z); g.add(m); return m;
+}
+/* rounded rectangle path — the basis of most connector cross-sections */
+function rrect(w,h,r,Cls){
+  const p=new (Cls||THREE.Shape)(); const x=-w/2, y=-h/2; r=Math.min(r,Math.min(w,h)/2);
+  p.moveTo(x+r,y);
+  p.lineTo(x+w-r,y); p.quadraticCurveTo(x+w,y,x+w,y+r);
+  p.lineTo(x+w,y+h-r); p.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  p.lineTo(x+r,y+h); p.quadraticCurveTo(x,y+h,x,y+h-r);
+  p.lineTo(x,y+r); p.quadraticCurveTo(x,y,x+r,y);
+  return p;
+}
+/* extrude a 2D shape along Z, centred on its own length */
+function ext(g,shape,depth,mat,bev,x,y,z){
+  const o={depth:depth,curveSegments:20,steps:1,bevelEnabled:!!bev};
+  if(bev){ o.bevelSize=bev; o.bevelThickness=bev; o.bevelSegments=3; }
+  const geo=new THREE.ExtrudeGeometry(shape,o);
+  geo.translate(0,0,-depth/2);
+  const m=new THREE.Mesh(geo,mat); m.position.set(x||0,y||0,z||0); g.add(m); return m;
+}
 function buildModel(id){
   const g=new THREE.Group();
-  const gold=M(0xd4af37,{metalness:.85,roughness:.25}), body=M(0x9fb6d9,{transparent:true,opacity:.5}),
-        plastic=M(0x2f6fd4), white=M(0xf2f2f2), dark=M(0x22262e), blue=M(0x1f6feb), cable=M(0x3a4356);
+  const gold   = Metal(0xd8a63d,120),
+        chrome = Metal(0xcfd6e0,110),
+        nickel = Metal(0xaeb6c2,80),
+        copper = Metal(0xc8763a,110),
+        clear  = new THREE.MeshPhysicalMaterial({color:0xdce9ff,transparent:true,opacity:.30,roughness:.06,
+                   metalness:0,transmission:.55,thickness:.6,side:THREE.DoubleSide}),
+        dark   = M(0x24272e,{roughness:.55,metalness:.1}),
+        rubber = M(0x17191e,{roughness:.9,metalness:0}),
+        ceramic= M(0xf4f4f1,{roughness:.3,metalness:0}),
+        aqua   = M(0x21b6a8,{roughness:.5}),
+        blue   = M(0x1f5fd0,{roughness:.45}),
+        beige  = M(0xd8cdb4,{roughness:.55}),
+        jacket = M(0x2b3140,{roughness:.75});
   const wireCols=[0xffffff,0xf97316,0xffffff,0x3b82f6,0xffffff,0x22c55e,0xffffff,0x92400e];
+
   if(id==="rj45"||id==="rj11"){
-    const n=id==="rj45"?8:4, w=id==="rj45"?2.2:1.6;
-    box(g,w,1.2,3.2,0,0,0,body);                      // clear housing
-    box(g,w*.7,.25,1.4,0,-.85,-.6,body);              // latch clip
-    for(let i=0;i<n;i++){ box(g,.14,.5,.9,-w/2+.25+i*(w-.5)/(n-1),.4,1.1,gold); }  // gold pins
-    for(let i=0;i<n;i++){ box(g,.16,.16,2.2,-w/2+.25+i*(w-.5)/(n-1),0,-.2,M(wireCols[i%8])); } // wires inside
-    cyl(g,.45,.45,2.2,0,0,-2.6,cable,20,Math.PI/2); g.children[g.children.length-1].rotation.set(Math.PI/2,0,0);
-  } else if(id==="lc"){
-    box(g,1,1,2.4,0,0,0,plastic);
-    box(g,.5,.3,1.2,0,.65,-.3,white);                 // latch
-    cyl(g,.16,.16,1.4,0,0,1.6,white); g.children[g.children.length-1].rotation.x=Math.PI/2;
-    cyl(g,.06,.06,1.7,0,0,1.8,gold); g.children[g.children.length-1].rotation.x=Math.PI/2;  // fiber core
-    cyl(g,.3,.3,2,0,0,-2.1,M(0xffb84d),20); g.children[g.children.length-1].rotation.x=Math.PI/2; // yellow SMF jacket
-  } else if(id==="sc"){
-    box(g,1.6,1.6,2.6,0,0,0,blue);
-    box(g,1.2,1.2,.6,0,0,1.5,white);
-    cyl(g,.18,.18,1.4,0,0,2.2,white); g.children[g.children.length-1].rotation.x=Math.PI/2;
-    cyl(g,.07,.07,1.8,0,0,2.4,gold); g.children[g.children.length-1].rotation.x=Math.PI/2;
-    cyl(g,.35,.35,2,0,0,-2.2,M(0xffb84d),20); g.children[g.children.length-1].rotation.x=Math.PI/2;
-  } else if(id==="st"){
-    cyl(g,.8,.8,2.2,0,0,0,dark,24); g.children[g.children.length-1].rotation.x=Math.PI/2;
-    box(g,.3,.25,.5,.85,0,-.6,dark); box(g,.3,.25,.5,-.85,0,-.6,dark);   // bayonet lugs
-    cyl(g,.2,.2,1.6,0,0,1.6,white); g.children[g.children.length-1].rotation.x=Math.PI/2;
-    cyl(g,.07,.07,2,0,0,1.8,gold); g.children[g.children.length-1].rotation.x=Math.PI/2;
-    cyl(g,.35,.35,2,0,0,-2,M(0xff8c42),20); g.children[g.children.length-1].rotation.x=Math.PI/2;
-  } else if(id==="coax"){
-    cyl(g,.85,.85,1.1,0,0,.4,M(0xbfc7d5,{metalness:.9,roughness:.3}),6);  // hex nut
-    g.children[g.children.length-1].rotation.x=Math.PI/2;
-    cyl(g,.55,.55,1.3,0,0,1.4,M(0xd9dee8,{metalness:.9,roughness:.2}),24); g.children[g.children.length-1].rotation.x=Math.PI/2; // threaded barrel
-    cyl(g,.07,.07,2.4,0,0,1.4,M(0xc47a3d,{metalness:.8}),12); g.children[g.children.length-1].rotation.x=Math.PI/2; // copper core pin
-    cyl(g,.5,.5,2.6,0,0,-1.4,dark,24); g.children[g.children.length-1].rotation.x=Math.PI/2;  // RG-6 jacket
-  } else if(id==="usbc"){
-    const oval=new THREE.Mesh(new THREE.CylinderGeometry(.55,.55,2.6,24),M(0xd9dee8,{metalness:.85,roughness:.25}));
-    oval.scale.set(1,1,.45); oval.rotation.z=Math.PI/2; g.add(oval);   // flattened metal shell
-    box(g,1.7,.18,1.4,0,0,0,dark);                                     // tongue
-    for(let i=0;i<8;i++) box(g,.12,.06,.5,-.8+i*.23,.13,.35,gold);
-    box(g,2,.9,1.6,0,0,-1.9,plastic);                                  // strain relief/body
-    cyl(g,.35,.35,1.8,0,0,-3.4,cable,20); g.children[g.children.length-1].rotation.x=Math.PI/2;
+    const n=id==="rj45"?8:6, W=id==="rj45"?2.35:1.75, H=1.5;
+    // clear polycarbonate housing
+    ext(g,rrect(W,H,.12),3.0,clear,.04,0,0,.4);
+    // front lip where the contacts sit
+    ext(g,rrect(W*.86,H*.45,.08),.5,clear,0,0,H*.24,1.75);
+    // gold contact blades, angled down into the housing
+    const span=W*.62;
+    for(let i=0;i<n;i++){
+      const x=-span/2+i*span/(n-1);
+      const b=box(g,.11,.62,.12,x,H*.26,1.35,gold); b.rotation.x=-0.5;
+      box(g,.11,.10,.85,x,H*.42,1.05,gold);
+    }
+    // twisted-pair wires visible through the clear body
+    for(let i=0;i<n;i++){
+      const x=-span/2+i*span/(n-1);
+      tube(g,.085,.085,2.5,x,-.05,.35,M(wireCols[i%8],{roughness:.6}),10);
+    }
+    // release latch: angled tab rising toward the cable, with a step
+    const latch=box(g,W*.5,.13,1.5,0,-H/2-.05,.15,clear); latch.rotation.x=0.20;
+    box(g,W*.5,.34,.16,0,-H/2-.30,-.55,clear);
+    // strain-relief boot + jacket
+    ext(g,rrect(W+.5,H+.45,.35),1.5,rubber,.06,0,0,-1.55);
+    tube(g,.46,.46,2.2,0,0,-3.2,jacket,24);
+  }
+
+  else if(id==="lc"){
+    // LC = "little connector": 6.4mm square latching body, 1.25mm ferrule
+    ext(g,rrect(1.05,1.05,.10),2.3,aqua,.05,0,0,-.1);            // body (aqua = OM3/OM4 multimode)
+    const latch=box(g,.55,.13,1.35,0,.62,-.35,aqua); latch.rotation.x=-0.16;  // RJ-style push latch
+    box(g,.55,.30,.14,0,.72,-1.0,aqua);
+    ext(g,rrect(.85,.85,.08),.55,ceramic,.03,0,0,1.25);          // front shoulder
+    tube(g,.145,.145,1.15,0,0,1.95,ceramic,24);                  // 1.25mm ceramic ferrule
+    tube(g,.028,.028,1.2,0,0,1.98,M(0x0a0a0a),12);               // fibre core down the middle
+    ext(g,rrect(.95,.95,.3),.9,rubber,.05,0,0,-1.55);            // boot
+    tube(g,.30,.30,2.0,0,0,-2.95,aqua,20);                       // aqua patch cable
+  }
+
+  else if(id==="sc"){
+    // SC = "square connector", push-pull, 2.5mm ferrule, keyed shroud
+    ext(g,rrect(1.45,1.45,.10),2.4,blue,.05,0,0,-.2);            // blue = single-mode
+    box(g,.30,.16,1.9,0,.78,-.2,blue);                           // alignment key rib
+    ext(g,rrect(1.28,1.28,.08),.85,beige,.04,0,0,1.35);          // ferrule shroud
+    tube(g,.27,.27,1.1,0,0,2.05,ceramic,24);                     // 2.5mm ferrule
+    tube(g,.032,.032,1.15,0,0,2.08,M(0x0a0a0a),12);
+    ext(g,rrect(1.3,1.3,.4),1.0,rubber,.06,0,0,-1.9);
+    tube(g,.33,.33,2.0,0,0,-3.4,blue,20);
+  }
+
+  else if(id==="st"){
+    // ST = "stick and twist": round bayonet coupling with two lugs
+    tube(g,.62,.62,1.9,0,0,.15,nickel,32);                       // barrel
+    tube(g,.78,.78,1.0,0,0,-.35,nickel,32);                      // knurled twist collar
+    for(let i=0;i<10;i++){ const a=i/10*Math.PI*2;               // knurling
+      box(g,.07,.07,.9,Math.cos(a)*.78,Math.sin(a)*.78,-.35,nickel); }
+    box(g,.20,.20,.30,.72,0,.85,chrome); box(g,.20,.20,.30,-.72,0,.85,chrome);  // bayonet lugs
+    tube(g,.27,.27,1.15,0,0,1.55,ceramic,24);                    // 2.5mm ferrule
+    tube(g,.032,.032,1.2,0,0,1.58,M(0x0a0a0a),12);
+    ext(g,rrect(1.0,1.0,.35),1.1,rubber,.05,0,0,-1.55);
+    tube(g,.31,.31,2.0,0,0,-3.0,M(0xff8c42,{roughness:.55}),20); // orange OM1/OM2 jacket
+  }
+
+  else if(id==="coax"){
+    // F-type: hex nut, threaded barrel, exposed centre conductor
+    const nut=new THREE.Mesh(new THREE.CylinderGeometry(.80,.80,1.05,6),chrome);
+    nut.rotation.x=Math.PI/2; nut.position.z=-.15; g.add(nut);
+    tube(g,.52,.52,1.5,0,0,1.05,chrome,28);                      // threaded section
+    for(let i=0;i<7;i++) ring(g,.53,.055,0,0,.45+i*.19,chrome);  // thread ridges
+    tube(g,.062,.062,3.0,0,0,1.1,copper,12);                     // solid copper centre conductor
+    tube(g,.46,.46,.55,0,0,-.85,nickel,28);                      // crimp ferrule
+    for(let i=0;i<3;i++) ring(g,.46,.045,0,0,-.72+i*.16,nickel);
+    tube(g,.40,.40,2.4,0,0,-2.3,M(0x101216,{roughness:.85}),24); // RG-6 black jacket
+  }
+
+  else if(id==="usbc"){
+    // USB-C: 8.4 x 2.6mm rounded-oval shell, 24 pins on a central tongue
+    const outer=rrect(2.55,.92,.46);
+    outer.holes.push(rrect(2.22,.60,.30,THREE.Path));
+    ext(g,outer,2.0,chrome,0,0,0,1.35);                          // hollow metal shell
+    ext(g,rrect(2.22,.60,.30),.12,dark,0,0,0,.36);               // back wall inside the shell
+    ext(g,rrect(1.86,.20,.10),1.65,dark,.02,0,0,1.5);            // central tongue
+    for(let s=0;s<2;s++){                                        // 12 gold pads per side
+      for(let i=0;i<12;i++){
+        box(g,.10,.035,.62,-.82+i*.15,(s?1:-1)*.115,1.62,gold);
+      }
+    }
+    ext(g,rrect(2.9,1.35,.55),2.3,dark,.10,0,0,-.85);            // overmoulded body
+    ext(g,rrect(2.55,1.15,.5),.18,M(0x3a3f48),.02,0,0,.32);      // trim ring at the collar
+    ext(g,rrect(1.4,.9,.4),1.1,rubber,.08,0,0,-2.4);             // strain relief
+    tube(g,.36,.36,2.0,0,0,-3.85,rubber,24);                     // cable
   }
   return g;
 }
@@ -1681,10 +1772,13 @@ function init3D(){
   const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
   renderer.setSize(wpx,hpx,false); renderer.setPixelRatio(window.devicePixelRatio||1);
   const scene=new THREE.Scene();
-  const camera=new THREE.PerspectiveCamera(45,wpx/hpx,.1,100); camera.position.set(0,1.4,7);
-  scene.add(new THREE.AmbientLight(0xffffff,.55));
-  const key=new THREE.DirectionalLight(0xffffff,.9); key.position.set(4,6,5); scene.add(key);
-  const rim=new THREE.DirectionalLight(0x9aa0aa,.5); rim.position.set(-5,-2,-4); scene.add(rim);
+  const camera=new THREE.PerspectiveCamera(45,wpx/hpx,.1,100); camera.position.set(0,1.2,8);
+  scene.add(new THREE.AmbientLight(0xffffff,.34));
+  scene.add(new THREE.HemisphereLight(0xdfe9ff,0x2a2f3a,.55));           // sky/ground fill
+  const key=new THREE.DirectionalLight(0xffffff,1.05); key.position.set(5,7,6); scene.add(key);
+  const fill=new THREE.DirectionalLight(0xa8c4ff,.45); fill.position.set(-6,-1,-4); scene.add(fill);
+  const spec=new THREE.PointLight(0xffffff,.85,40); spec.position.set(1.5,3,6); scene.add(spec);
+  const spec2=new THREE.PointLight(0xbcd0ff,.5,40); spec2.position.set(-4,-2,3); scene.add(spec2);
   const group=buildModel(C3D.cur); group.rotation.set(.35,.7,0); scene.add(group);
   Object.assign(C3D,{renderer,scene,camera,group,drag:false,idle:0});
   cv.onpointerdown=e=>{C3D.drag=true;C3D.px=e.clientX;C3D.py=e.clientY;cv.setPointerCapture(e.pointerId);};
