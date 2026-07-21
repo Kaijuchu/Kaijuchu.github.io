@@ -730,12 +730,14 @@ function load(){
 }
 S.aiQ = S.aiQ||[];  S.apiKey = S.apiKey||"";  S.model = S.model||"claude-haiku-4-5-20251001";
 S.provider = S.provider||"gemini"; S.gemKey = S.gemKey||""; S.gemModel = S.gemModel||"gemini-3-flash";
+S.supaUrl=S.supaUrl||""; S.supaKey=S.supaKey||""; if(S.syncKeys===undefined)S.syncKeys=true; S.updatedAt=S.updatedAt||0;
 S.theme=S.theme||"dark"; S.quizLen=S.quizLen||10; if(S.shuffleOpts===undefined)S.shuffleOpts=true;
 S.feedback=S.feedback||"each"; S.examDate=S.examDate||""; S.dailyGoal=S.dailyGoal||20;
 S.daily=S.daily||{date:"",count:0}; S.streak=S.streak||{count:0,last:""}; S.sbCollapsed=!!S.sbCollapsed;
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 QUESTIONS.push(...S.aiQ);   // restore AI-generated questions from previous sessions
-function save(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){ console.warn("Could not save progress:",e); } }
+function save(){ S.updatedAt=Date.now(); try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){ console.warn("Could not save progress:",e); }
+  if(typeof scheduleCloudPush==="function") scheduleCloudPush(); }
 /* Stats are keyed by a hash of the question text, not its position in the array,
    so adding questions in a future update never scrambles existing progress. */
 function qkey(q){ let h=0; const s=q.q||""; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return "q"+(h>>>0).toString(36); }
@@ -1188,7 +1190,7 @@ function seg(pairs,key){
 }
 function settingsView(){
   const t=todayStr();
-  return `
+  return `${accountCard()}
   <div class="card"><h2>${ic("sparkles")}AI setup</h2>
     <div class="set-row"><span>Provider</span>${seg([["gemini","Google Gemini — free"],["anthropic","Anthropic — paid"]],"provider")}</div>
     ${S.provider==="gemini"?`
@@ -1797,6 +1799,171 @@ function init3D(){
   })();
 }
 
+/* ================= CLOUD ACCOUNTS (Supabase) =================
+   Static site + Supabase = real accounts with no server of your own.
+   The anon key is meant to be public; security comes from Row Level Security,
+   which restricts every row to the user that owns it. See SUPABASE-SETUP.md. */
+const SUPA_URL_BAKED = "";   // filled in once the project exists
+const SUPA_KEY_BAKED = "";
+const CLOUD={ sdk:null, client:null, user:null, busy:false, msg:"", applying:false, timer:null, lastSync:null };
+function cloudCfg(){ return { url:(S.supaUrl||SUPA_URL_BAKED||"").trim(), key:(S.supaKey||SUPA_KEY_BAKED||"").trim() }; }
+function cloudConfigured(){ const c=cloudCfg(); return !!(c.url&&c.key); }
+
+function loadSupabase(){
+  if(CLOUD.sdk) return Promise.resolve(CLOUD.sdk);
+  return new Promise((res,rej)=>{
+    if(typeof document==="undefined") return rej(new Error("no document"));
+    const s=document.createElement("script");
+    s.src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
+    s.onload=()=>{ CLOUD.sdk=window.supabase; CLOUD.sdk?res(CLOUD.sdk):rej(new Error("Supabase SDK failed to load")); };
+    s.onerror=()=>rej(new Error("Couldn't load the Supabase library — check your internet connection."));
+    document.head.appendChild(s);
+  });
+}
+async function cloudClient(){
+  if(CLOUD.client) return CLOUD.client;
+  if(!cloudConfigured()) throw new Error("Add your Supabase URL and anon key first.");
+  const sdk=await loadSupabase(); const c=cloudCfg();
+  CLOUD.client=sdk.createClient(c.url,c.key);
+  return CLOUD.client;
+}
+async function cloudInit(){
+  if(!cloudConfigured()) return;
+  try{
+    const cl=await cloudClient();
+    const {data}=await cl.auth.getSession();
+    if(data&&data.session){ CLOUD.user=data.session.user; await cloudSync(true); }
+    render();
+  }catch(e){ CLOUD.msg=e.message; }
+}
+/* ---- merge: counters take the higher value, settings follow the newer device ---- */
+function mergeState(local,remote){
+  if(!remote||typeof remote!=="object") return local;
+  const lNew=(local.updatedAt||0)>=(remote.updatedAt||0);
+  const out=JSON.parse(JSON.stringify(lNew?local:remote));   // newer device wins on plain settings
+  // question stats: monotonic counters, so take the max of each
+  const stats={};
+  const keys=new Set([...Object.keys(local.qstats||{}),...Object.keys(remote.qstats||{})]);
+  keys.forEach(k=>{
+    const a=(local.qstats||{})[k], b=(remote.qstats||{})[k];
+    if(!a){ stats[k]=b; return; } if(!b){ stats[k]=a; return; }
+    const primary=(a.seen||0)>=(b.seen||0)?a:b;
+    stats[k]={ seen:Math.max(a.seen||0,b.seen||0), right:Math.max(a.right||0,b.right||0),
+               wrong:Math.max(a.wrong||0,b.wrong||0), lastWrong:primary.lastWrong };
+  });
+  out.qstats=stats;
+  // AI-generated questions: union by question text
+  const seenQ=new Set(), aiQ=[];
+  [...(local.aiQ||[]),...(remote.aiQ||[])].forEach(q=>{ if(q&&q.q&&!seenQ.has(q.q)){ seenQ.add(q.q); aiQ.push(q); } });
+  out.aiQ=aiQ;
+  out.sessions=Math.max(local.sessions||0,remote.sessions||0);
+  // daily goal + streak: the later date wins
+  const ld=local.daily||{},rd=remote.daily||{};
+  out.daily = (ld.date||"")>(rd.date||"") ? ld : (rd.date||"")>(ld.date||"") ? rd
+            : { date:ld.date||rd.date||"", count:Math.max(ld.count||0,rd.count||0), hit:!!(ld.hit||rd.hit) };
+  const ls=local.streak||{},rs=remote.streak||{};
+  out.streak = (ls.last||"")>(rs.last||"") ? ls : (rs.last||"")>(ls.last||"") ? rs
+            : { last:ls.last||rs.last||"", count:Math.max(ls.count||0,rs.count||0) };
+  // unfinished quiz: keep whichever was touched most recently, but never clobber one in progress here
+  const lsn=local.session,rsn=remote.session;
+  out.session = (quiz&&!quiz.done) ? lsn : ((lsn&&rsn) ? ((lsn.at||0)>=(rsn.at||0)?lsn:rsn) : (lsn||rsn||null));
+  if(!S.syncKeys){ out.apiKey=local.apiKey; out.gemKey=local.gemKey; }   // per-device opt-out
+  out.supaUrl=local.supaUrl; out.supaKey=local.supaKey;                  // connection details stay local
+  return out;
+}
+async function cloudSync(silent){
+  if(!CLOUD.user) return;
+  CLOUD.busy=true; if(!silent){ CLOUD.msg="Syncing…"; render(); }
+  try{
+    const cl=await cloudClient();
+    const {data,error}=await cl.from("progress").select("data").eq("id",CLOUD.user.id).maybeSingle();
+    if(error && error.code!=="PGRST116") throw error;
+    CLOUD.applying=true;
+    const merged=mergeState(S,(data&&data.data)||null);
+    Object.assign(S,merged);
+    // rebuild the in-memory question bank with any AI questions that arrived
+    (S.aiQ||[]).forEach(q=>{ if(!QUESTIONS.some(x=>x.q===q.q)) QUESTIONS.push(q); });
+    CLOUD.applying=false;
+    S.updatedAt=Date.now(); save();
+    const payload=Object.assign({},S);
+    delete payload.supaUrl; delete payload.supaKey;
+    if(!S.syncKeys){ delete payload.apiKey; delete payload.gemKey; }
+    const {error:upErr}=await cl.from("progress").upsert({id:CLOUD.user.id,data:payload,updated_at:new Date().toISOString()});
+    if(upErr) throw upErr;
+    CLOUD.lastSync=Date.now(); CLOUD.msg="";
+  }catch(e){ CLOUD.msg="Sync failed: "+(e.message||e); }
+  CLOUD.busy=false; render();
+}
+function scheduleCloudPush(){
+  // save() can fire during start-up migrations, before CLOUD exists — stay silent then
+  try{
+    if(!CLOUD.user||CLOUD.applying) return;
+    clearTimeout(CLOUD.timer);
+    CLOUD.timer=setTimeout(()=>{ cloudSync(true); },4000); // debounce so a quiz doesn't spam the API
+  }catch(e){ /* not ready yet */ }
+}
+async function cloudAuth(mode){
+  const em=document.getElementById("acc-email"), pw=document.getElementById("acc-pass");
+  const email=em?em.value.trim():"", pass=pw?pw.value:"";
+  if(!email||!pass){ CLOUD.msg="Enter an email and password."; render(); return; }
+  if(mode==="up"&&pass.length<6){ CLOUD.msg="Password must be at least 6 characters."; render(); return; }
+  CLOUD.busy=true; CLOUD.msg=mode==="up"?"Creating account…":"Signing in…"; render();
+  try{
+    const cl=await cloudClient();
+    const {data,error}= mode==="up"
+      ? await cl.auth.signUp({email,password:pass})
+      : await cl.auth.signInWithPassword({email,password:pass});
+    if(error) throw error;
+    if(!data.session && mode==="up"){ CLOUD.busy=false; CLOUD.msg="Account created — check your email to confirm, then sign in."; render(); return; }
+    CLOUD.user=data.user; CLOUD.msg=""; CLOUD.busy=false;
+    await cloudSync();
+  }catch(e){ CLOUD.busy=false; CLOUD.msg=(e.message||String(e)); render(); }
+}
+async function cloudSignOut(){
+  try{ const cl=await cloudClient(); await cl.auth.signOut(); }catch(e){}
+  CLOUD.user=null; CLOUD.msg="Signed out — your progress stays on this device."; render();
+}
+function saveCloudCfg(){
+  S.supaUrl=document.getElementById("supa-url").value.trim();
+  S.supaKey=document.getElementById("supa-key").value.trim();
+  CLOUD.client=null; save(); CLOUD.msg="Saved. Now create an account or sign in."; render();
+}
+function accountCard(){
+  const ago=CLOUD.lastSync?Math.round((Date.now()-CLOUD.lastSync)/1000):null;
+  const note=CLOUD.msg?`<div class="muted" style="margin-top:10px">${esc(CLOUD.msg)}</div>`:"";
+  if(!cloudConfigured()){
+    return `<div class="card"><h2>${ic("db")}Account &amp; sync</h2>
+      <p class="muted" style="margin:6px 0 12px">Sync your progress across devices with a free Supabase project.
+      Follow <b>SUPABASE-SETUP.md</b> in your study folder (about 5 minutes), then paste the two values below.</p>
+      <label class="muted">Project URL</label>
+      <input class="inp" id="supa-url" style="width:100%;margin:6px 0 10px" placeholder="https://xxxxx.supabase.co" value="${esc(S.supaUrl||"")}">
+      <label class="muted">Anon public key</label>
+      <input class="inp" id="supa-key" style="width:100%;margin:6px 0 12px" placeholder="eyJhbGci..." value="${esc(S.supaKey||"")}">
+      <button class="btn small" onclick="saveCloudCfg()">Save connection</button>${note}</div>`;
+  }
+  if(!CLOUD.user){
+    return `<div class="card"><h2>${ic("db")}Account &amp; sync</h2>
+      <p class="muted" style="margin:6px 0 12px">Sign in to sync your progress, streak and AI questions across devices.</p>
+      <input class="inp" id="acc-email" type="email" style="width:100%;margin:0 0 8px" placeholder="you@example.com" autocomplete="username">
+      <input class="inp" id="acc-pass" type="password" style="width:100%;margin:0 0 12px" placeholder="Password (6+ characters)" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')cloudAuth('in')">
+      <div class="row">
+        <button class="btn small" ${CLOUD.busy?"disabled":""} onclick="cloudAuth('in')">Sign in</button>
+        <button class="btn small secondary" ${CLOUD.busy?"disabled":""} onclick="cloudAuth('up')">Create account</button>
+        <button class="btn small secondary" onclick="S.supaUrl='';S.supaKey='';CLOUD.client=null;save();render()">Change project</button>
+      </div>${note}</div>`;
+  }
+  return `<div class="card"><h2>${ic("db")}Account &amp; sync</h2>
+    <div class="set-row"><span>Signed in<div class="muted" style="font-size:.75rem">${esc(CLOUD.user.email||"")}</div></span>
+      <span class="pill">${ic("check")} ${ago===null?"connected":ago<60?"synced just now":"synced "+Math.round(ago/60)+" min ago"}</span></div>
+    <div class="set-row"><span>Sync API keys too<div class="muted" style="font-size:.75rem">Convenient, but stores your key in the cloud</div></span>
+      ${seg([[true,"On"],[false,"Off"]],"syncKeys")}</div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn small" ${CLOUD.busy?"disabled":""} onclick="cloudSync()">${CLOUD.busy?"Syncing…":"Sync now"}</button>
+      <button class="btn small secondary" onclick="cloudSignOut()">Sign out</button>
+    </div>${note}</div>`;
+}
+
 /* ================= CURSOR-REACTIVE BACKGROUND ================= */
 (function(){
   if(typeof window==="undefined"||typeof document==="undefined") return;
@@ -1840,6 +2007,7 @@ function confirmReset(){
   save(); quiz=null; lab=null; go("dash");
 }
 render();
+if(typeof cloudInit==="function") cloudInit();
 </script>
 </body>
 </html>
