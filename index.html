@@ -416,6 +416,93 @@
   /* ---- v3.8: slightly thinner edge fringe ---- */
   #nav button.active::before{inset:-1px;padding:1.7px}
   #nav button.active::after{inset:-1px;padding:1.7px}
+  /* ---- v4: thinner ring, extra shimmer, pastel glass, tab transitions, AI dock ---- */
+  #nav button.active::before{inset:-.5px;padding:1.25px}
+  #nav button.active::after{inset:-.5px;padding:1.25px;
+    background:conic-gradient(from var(--ga),transparent 0 288deg,rgba(255,255,255,.25) 306deg,rgba(255,255,255,.95) 330deg,#fff 344deg,rgba(255,255,255,.9) 350deg,rgba(255,255,255,.25) 356deg,transparent 360deg);
+    filter:blur(.35px) drop-shadow(0 0 4px rgba(255,255,255,.6));animation:glintSpin 2.2s linear infinite}
+  #nav button.active .ico::after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
+    background:linear-gradient(115deg,transparent 38%,rgba(255,255,255,.5) 48%,transparent 58%);
+    background-size:250% 250%;animation:knobSheen 3.2s ease-in-out infinite}
+  @keyframes knobSheen{0%{background-position:130% 130%}55%,100%{background-position:-40% -40%}}
+  /* pastel iridescent glass (reference kit) */
+  .card{background:rgba(255,255,255,.055);border-color:rgba(255,255,255,.15);
+    backdrop-filter:blur(26px) saturate(1.8);-webkit-backdrop-filter:blur(26px) saturate(1.8);
+    box-shadow:0 16px 50px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.16),inset 0 -1px 0 rgba(255,255,255,.05)}
+  .card>*{position:relative;z-index:1}
+  .card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;
+    background:radial-gradient(65% 55% at 8% -5%,rgba(167,139,250,.20),transparent 62%),
+               radial-gradient(55% 50% at 95% 6%,rgba(244,164,212,.15),transparent 60%),
+               radial-gradient(60% 55% at 88% 104%,rgba(125,211,206,.16),transparent 62%);
+    mix-blend-mode:screen;opacity:.9}
+  body.light .card::after{opacity:.55}
+  .card2-glow{position:relative}
+  .lab-tile,.focus-item{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.13)}
+  .lab-tile:hover,.focus-item:hover{background:rgba(255,255,255,.085);border-color:rgba(255,255,255,.28)}
+  .opt{background:rgba(255,255,255,.045);border-color:rgba(255,255,255,.12)}
+  .opt:hover:not(:disabled){background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.3)}
+  /* liquid glass tab transition */
+  @keyframes glassIn{
+    0%{opacity:0;transform:translateY(14px) scale(.975);filter:blur(10px)}
+    55%{opacity:1;filter:blur(0)}
+    75%{transform:translateY(-2px) scale(1.004)}
+    100%{opacity:1;transform:none;filter:blur(0)}}
+  #app.tab-anim>*{animation:glassIn .5s cubic-bezier(.22,.68,.28,1.02) both}
+  #app.tab-anim>*:nth-child(2){animation-delay:.06s}
+  #app.tab-anim>*:nth-child(3){animation-delay:.12s}
+  #app.tab-anim>*:nth-child(4){animation-delay:.18s}
+  @keyframes pillMorph{
+    0%{transform:scale(.9,1.08)}35%{transform:scale(1.06,.94)}
+    65%{transform:scale(.985,1.02)}100%{transform:scale(1)}}
+  #nav button.just-active{animation:pillMorph .55s cubic-bezier(.3,1.4,.4,1)}
+  @keyframes ripple{from{transform:scale(.2);opacity:.5}to{transform:scale(1.9);opacity:0}}
+  #nav button.just-active .ico::before{animation:ripple .6s ease-out}
+  /* ---- AI dock: sidebar button + floating context panel ---- */
+  .sb-spacer{flex:1}
+  #ai-fab{display:flex;align-items:center;gap:12px;width:100%;cursor:pointer;position:relative;
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);border-radius:999px;
+    padding:9px 11px;color:var(--text);font-size:.85rem;font-weight:700;white-space:nowrap;overflow:hidden;
+    backdrop-filter:blur(16px) saturate(1.6);-webkit-backdrop-filter:blur(16px) saturate(1.6);
+    box-shadow:0 8px 22px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.14);transition:.2s}
+  #ai-fab:hover{background:rgba(255,255,255,.1);transform:translateY(-1px)}
+  #ai-fab .ico{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(140deg,rgba(167,139,250,.5),rgba(125,211,206,.4));flex-shrink:0;
+    box-shadow:inset 0 1px 1px rgba(255,255,255,.3)}
+  #ai-fab .ico svg{width:17px;height:17px}
+  #ai-fab::before{content:"";position:absolute;inset:-.5px;border-radius:999px;padding:1.25px;
+    background:conic-gradient(from calc(180deg + var(--fa)),rgba(255,255,255,.85) 0deg,#a78bfa 40deg,#f4a4d4 90deg,rgba(255,255,255,.9) 140deg,#7dd3ce 200deg,#a78bfa 260deg,rgba(255,255,255,.85) 320deg,#f4a4d4 360deg);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;
+    filter:blur(.4px) drop-shadow(0 0 5px rgba(167,139,250,.5));animation:fringeSpin 9s linear infinite;pointer-events:none}
+  body.sb-min #ai-fab{justify-content:center;padding:9px}
+  #ai-panel{position:fixed;left:236px;bottom:18px;width:390px;max-width:calc(100vw - 260px);z-index:40;
+    display:flex;flex-direction:column;border-radius:20px;overflow:hidden;
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);
+    backdrop-filter:blur(30px) saturate(1.9);-webkit-backdrop-filter:blur(30px) saturate(1.9);
+    box-shadow:0 24px 70px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.18);
+    animation:dockIn .4s cubic-bezier(.22,.9,.3,1.02) both}
+  body.sb-min #ai-panel{left:80px}
+  @keyframes dockIn{from{opacity:0;transform:translateY(18px) scale(.96);filter:blur(8px)}to{opacity:1;transform:none;filter:blur(0)}}
+  #ai-panel::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    background:radial-gradient(60% 45% at 6% 0%,rgba(167,139,250,.22),transparent 60%),
+               radial-gradient(55% 45% at 96% 100%,rgba(125,211,206,.18),transparent 60%);
+    mix-blend-mode:screen}
+  .ai-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 15px;
+    border-bottom:1px solid var(--border);position:relative;z-index:1}
+  .ai-head b{font-size:.9rem}
+  .ai-ctx{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);
+    font-family:'Cascadia Mono','Consolas',monospace;margin-top:2px}
+  .ai-close{background:var(--card2);border:1px solid var(--border);color:var(--muted);border-radius:8px;
+    width:26px;height:26px;cursor:pointer;flex-shrink:0}
+  .ai-close:hover{color:var(--text)}
+  .ai-body{padding:12px 14px;overflow-y:auto;max-height:44vh;position:relative;z-index:1}
+  .ai-foot{padding:11px 13px;border-top:1px solid var(--border);position:relative;z-index:1}
+  .ai-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px}
+  .ai-chips button{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--muted);
+    border-radius:999px;padding:6px 11px;font-size:.72rem;cursor:pointer;text-align:left;transition:.15s}
+  .ai-chips button:hover{color:var(--text);border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.1)}
+  @media(max-width:760px){
+    #ai-panel,body.sb-min #ai-panel{left:10px;right:10px;width:auto;max-width:none;bottom:10px}
+  }
 </style>
 </head>
 <body>
@@ -426,7 +513,12 @@
     <button class="sb-collapse" id="sb-col" onclick="toggleSb()" title="Collapse sidebar">⟨</button>
   </div>
   <nav id="nav"></nav>
+  <div class="sb-spacer"></div>
+  <button id="ai-fab" onclick="toggleAi()" title="AI Tutor — knows what you're working on">
+    <span class="ico"></span><span class="lbl">AI Tutor</span>
+  </button>
 </aside>
+<div id="ai-dock"></div>
 <div class="wrap">
   <header>
     <div style="display:flex;align-items:center;gap:12px">
@@ -603,8 +695,8 @@ function gapScores(){
 }
 
 /* ================= NAV / RENDER ================= */
-const TABS=[["dash","Dashboard"],["quiz","Practice"],["labs","Labs"],["ai","AI Tutor"],["focus","Focus"],["grow","Grow"],["set","Settings"]];
-let tab="dash", quiz=null, lab=null, sbOpen=false;
+const TABS=[["dash","Dashboard"],["quiz","Practice"],["labs","Labs"],["focus","Focus"],["grow","Grow"],["set","Settings"]];
+let tab="dash", quiz=null, lab=null, sbOpen=false, aiOpen=false, lastTab=null;
 const SVGI=(cls,inner)=>`<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
 const NAV_ICONS={
   dash:SVGI("ic-dash",'<path d="M3 21h18"/><rect x="5" y="12" width="3.5" height="6" rx="1"/><rect x="10.2" y="8" width="3.5" height="10" rx="1"/><rect x="15.5" y="4" width="3.5" height="14" rx="1"/>'),
@@ -617,9 +709,12 @@ const NAV_ICONS={
 };
 
 function nav(){
+  const justSwitched = lastTab!==null && lastTab!==tab;
   document.getElementById("nav").innerHTML = TABS.map(([id,label])=>
-    `<button class="${tab===id?'active':''}" title="${label}" onclick="sbOpen=false;go('${id}')"><span class="ico">${NAV_ICONS[id]||"•"}</span><span class="lbl">${label}</span></button>`).join("");
+    `<button class="${tab===id?'active':''}${tab===id&&justSwitched?' just-active':''}" title="${label}" onclick="sbOpen=false;go('${id}')"><span class="ico">${NAV_ICONS[id]||"•"}</span><span class="lbl">${label}</span></button>`).join("");
   const c=document.getElementById("sb-col"); if(c) c.textContent=S.sbCollapsed?"⟩":"⟨";
+  const fab=document.getElementById("ai-fab");
+  if(fab){ const i=fab.querySelector(".ico"); if(i&&!i.innerHTML) i.innerHTML=NAV_ICONS.ai; }
 }
 function toggleSb(){ S.sbCollapsed=!S.sbCollapsed; save(); render(); }
 function go(t){ tab=t; quiz=null; lab=null; stop3D(); render(); }
@@ -627,20 +722,22 @@ function render(){ nav();
   if(typeof document!=="undefined"&&document.body)
     document.body.className = (S.theme==="light"?"light ":"")+(S.sbCollapsed?"sb-min ":"")+(sbOpen?"sb-open":"");
   const el=document.getElementById("app");
-  if(tab==="set") { el.innerHTML=settingsView(); afterRender(); window.scrollTo(0,0); return; }
-  if(tab==="dash") el.innerHTML=dashView();
+  const switched = lastTab!==tab;
+  if(tab==="set") el.innerHTML=settingsView();
+  else if(tab==="dash") el.innerHTML=dashView();
   else if(tab==="quiz") el.innerHTML= quiz? quizView() : quizSetupView();
   else if(tab==="labs") el.innerHTML= lab? labView() : labsHubView();
-  else if(tab==="ai") el.innerHTML=aiView();
   else if(tab==="focus") el.innerHTML=focusView();
   else if(tab==="grow") el.innerHTML=growView();
+  if(switched){ el.classList.remove("tab-anim"); void el.offsetWidth; el.classList.add("tab-anim"); }
+  lastTab=tab;
+  renderAiDock();
   afterRender();
-  window.scrollTo(0,0);
+  if(switched) window.scrollTo(0,0);
 }
 function afterRender(){
   if(tab==="labs" && lab==="cable") init3D();
   if(tab==="labs" && lab==="term"){ const i=document.getElementById("term-in"); if(i) i.focus(); }
-  if(tab==="ai"){ const b=document.getElementById("chat-scroll"); if(b) b.scrollTop=b.scrollHeight; }
 }
 
 /* ================= DASHBOARD ================= */
@@ -725,7 +822,6 @@ function answer(k){
   save(); render();
 }
 function nextQ(){
-  quiz.qchat=null;
   if(quiz.idx+1>=quiz.items.length){ quiz.done=true; S.sessions++; save(); }
   else { quiz.idx++; quiz.answered=null; }
   render();
@@ -802,8 +898,7 @@ function quizView(){
       <div class="row">
         <button class="btn" onclick="nextQ()">${quiz.idx+1>=quiz.items.length?"Finish":"Next question"}</button>
         <button class="btn secondary" onclick="askAboutQ()">${ic("sparkles")} Ask AI about this</button>
-      </div>
-      <div id="qchat"></div>`):""}
+      </div>`):""}
   </div>`;
 }
 
@@ -1031,7 +1126,7 @@ function settingsView(){
 }
 
 /* ---- AI tutor tab ---- */
-const AIC={msgs:[],busy:false};
+const AIC={msgs:[],busy:false,draft:""};
 function tutorSystem(){
   const g=gapScores();
   return "You are a friendly, expert CompTIA A+ tutor helping a student pass the current exams (Core 1 220-1201 and Core 2 220-1202). "
@@ -1040,71 +1135,105 @@ function tutorSystem(){
    + ". Weakest areas first: "+g.slice(0,3).map(x=>x.name).join(", ")
    + ". Be concise, exam-focused, use analogies, and when quizzing ask one question at a time and wait for the answer.";
 }
-function aiView(){
-  if(!aiReady()) return `<div class="card center">
-    <h2>AI Tutor</h2>
-    <p class="muted" style="margin:12px 0">Connect a free Google Gemini API key (or Anthropic) to unlock a personal A+ tutor — it knows your weak domains and can explain, quiz, and coach you conversationally.</p>
-    <button class="btn" onclick="openSettings()">${ic("gear")} Set up AI</button></div>`;
-  const chips=["Quiz me on my weakest domain","Explain RAID levels with an analogy","Make a 2-week study plan for me","What PBQs should I practice?"];
-  return `<div class="card">
-    <h2>AI Tutor <span class="muted" style="font-weight:400">— knows your progress</span></h2>
-    <div class="chat-box" id="chat-scroll">
+/* ---- context: what is the user looking at right now? ---- */
+function aiContext(){
+  if(tab==="quiz" && quiz && !quiz.done && quiz.items[quiz.idx]){
+    const q=quiz.items[quiz.idx], dom=DOMAINS.find(d=>d.id===q.d), answered=quiz.answered!==null;
+    return {label:"Practice · "+dom.name,
+      sys:"The student is on a practice question right now.\nQuestion: "+q.q
+        +"\nOptions: "+q.o.map((o,i)=>String.fromCharCode(65+i)+") "+o).join(" | ")
+        +"\nCorrect answer: "+String.fromCharCode(65+q.a)+") "+q.o[q.a]
+        +"\nOfficial explanation: "+q.e
+        +(answered?"\nThey answered "+(quiz.answered===q.a?"CORRECTLY.":"INCORRECTLY, choosing "+String.fromCharCode(65+quiz.answered)+") "+q.o[quiz.answered]+"."):"\nThey have NOT answered yet — do NOT reveal the answer; give hints and concepts only."),
+      chips:answered?["Explain this like I'm new","Why is my answer wrong?","Give me a memory trick"]
+                    :["Give me a hint","Explain the concept behind this","What's the key term here?"]};
+  }
+  if(tab==="labs" && lab==="cable"){
+    const c=CONNECTORS.find(x=>x.id===C3D.cur);
+    return {label:"Lab · 3D Cables",
+      sys:"The student is inspecting the "+c.name+" in the 3D connector lab. Cable: "+c.cable+". Speed: "+c.speed+". Max distance: "+c.dist+". Used for: "+c.use,
+      chips:["How do I recognize this on the exam?","Compare this to the alternatives","When would I use this?"]};
+  }
+  if(tab==="labs" && lab==="pbq"){
+    return {label:"Lab · PBQ practice",
+      sys:"The student is practicing ordering PBQs"+(P.ex?" — currently: "+P.ex.name+" (correct order: "+P.ex.items.join(" → ")+")":"."),
+      chips:["Help me memorize this order","Why is this the order?","What else shows up as a PBQ?"]};
+  }
+  if(tab==="labs" && lab==="term"){
+    return {label:"Lab · Terminal sim",
+      sys:"The student is diagnosing a simulated network fault in a command-prompt lab. Do NOT reveal the answer outright — coach them toward it with questions and command suggestions. Recent terminal output:\n"
+        +T.lines.slice(-14).map(l=>l.t).join("\n"),
+      chips:["What should I check next?","What does this output mean?","Explain these commands"]};
+  }
+  if(tab==="labs" && lab==="pc"){
+    return {label:"Lab · PC builder",
+      sys:"The student is assembling a virtual motherboard (CPU, RAM, M.2, PCIe, ATX/EPS power, SATA). Latest feedback: "+(PC?PC.msg:""),
+      chips:["Explain motherboard connectors","ATX vs EPS vs PCIe power?","What order do I build a PC in?"]};
+  }
+  if(tab==="labs") return {label:"Labs", sys:"The student is browsing the interactive labs (3D cables, PBQ practice, terminal sim, PC builder).",
+    chips:["Which lab helps most for the exam?","What are PBQs like on the real exam?"]};
+  if(tab==="dash"){
+    const g=gapScores();
+    return {label:"Dashboard", sys:"The student is viewing their progress dashboard. Weakest domains: "+g.slice(0,3).map(x=>x.name+" ("+(x.acc===null?"untested":Math.round(x.acc*100)+"%")+")").join(", ")+".",
+      chips:["What should I study next?","Explain my weakest domain","Make me a study plan"]};
+  }
+  if(tab==="focus") return {label:"Focus areas", sys:"The student is choosing which exam domains to focus their practice on.",
+    chips:["Which domains matter most?","How should I split my study time?"]};
+  if(tab==="grow") return {label:"Career paths", sys:"The student is reading about certifications and skills to pursue after the A+.",
+    chips:["Security+ or Network+ next?","What jobs can I get with an A+?","Which skills pay most right now?"]};
+  if(tab==="set") return {label:"Settings", sys:"The student is in the app's settings screen.",
+    chips:["How should I set my daily goal?","Explain spaced repetition"]};
+  return {label:"A+ Study Hub", sys:"", chips:["Quiz me on my weakest domain","Make a study plan"]};
+}
+function toggleAi(){ aiOpen=!aiOpen; renderAiDock(); if(aiOpen){ const i=document.getElementById("ai-in"); if(i) i.focus(); } }
+function renderAiDock(){
+  const root=document.getElementById("ai-dock"); if(!root) return;
+  if(!aiOpen){ root.innerHTML=""; return; }
+  const ctx=aiContext();
+  const head=`<div class="ai-head"><div><b>AI Tutor</b><div class="ai-ctx">${esc(ctx.label)}</div></div>
+    <button class="ai-close" onclick="toggleAi()">✕</button></div>`;
+  if(!aiReady()){
+    root.innerHTML=`<div id="ai-panel">${head}
+      <div class="ai-body"><p class="muted">Connect a free Google Gemini API key to unlock a tutor that knows exactly what you're working on.</p>
+      <button class="btn small" style="margin-top:12px" onclick="toggleAi();go('set')">${ic("gear")} Set up AI</button></div></div>`;
+    return;
+  }
+  root.innerHTML=`<div id="ai-panel">${head}
+    <div class="ai-body" id="ai-scroll">
       ${AIC.msgs.length? AIC.msgs.map(m=>`<div class="msg ${m.r}">${esc(m.t)}</div>`).join("")
-        : `<div class="msg think">Ask me anything about the A+ — or tap a suggestion below.</div>`}
+        : `<div class="msg think">I can see what you're working on — ask away, or tap a suggestion.</div>`}
       ${AIC.busy?'<div class="msg think">Thinking…</div>':""}
     </div>
-    <div class="chat-input">
-      <input id="chat-in" placeholder="Ask your tutor…" onkeydown="if(event.key==='Enter')sendChat()">
-      <button class="btn small" onclick="sendChat()">Send</button>
-    </div>
-    <div class="row" style="margin-top:10px">${chips.map(c=>`<button class="btn small secondary" onclick="document.getElementById('chat-in').value='${c.replace(/'/g,"\\'")}';sendChat()">${c}</button>`).join("")}</div>
-  </div>`;
+    <div class="ai-foot">
+      <div class="ai-chips">${ctx.chips.map(c=>`<button onclick="askAi('${c.replace(/'/g,"\\'")}')">${c}</button>`).join("")}
+        ${AIC.msgs.length?'<button onclick="AIC.msgs=[];renderAiDock()">Clear chat</button>':""}</div>
+      <div class="chat-input">
+        <input id="ai-in" placeholder="Ask about this screen…" value="${esc(AIC.draft||"")}"
+          oninput="AIC.draft=this.value" onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="btn small" onclick="sendChat()">Send</button>
+      </div>
+    </div></div>`;
+  const b=document.getElementById("ai-scroll"); if(b) b.scrollTop=b.scrollHeight;
 }
-async function sendChat(){
-  const el=document.getElementById("chat-in"); const txt=el?el.value.trim():"";
+function askAi(text){ sendChat(text); }
+async function sendChat(override){
+  const el=document.getElementById("ai-in");
+  const txt=String(override!==undefined?override:(el?el.value:AIC.draft||"")).trim();
   if(!txt||AIC.busy) return;
-  AIC.msgs.push({r:"user",t:txt}); AIC.busy=true; render();
+  const ctx=aiContext();
+  AIC.msgs.push({r:"user",t:txt}); AIC.draft=""; AIC.busy=true; renderAiDock();
   try{
     const hist=AIC.msgs.map(m=>({role:m.r==="user"?"user":"assistant",content:m.t}));
-    const out=await callClaude(hist, tutorSystem(), 900);
+    const sys=tutorSystem()+(ctx.sys?"\n\n=== WHAT THEY ARE LOOKING AT RIGHT NOW ===\n"+ctx.sys
+      +"\nAnswer in that context. Keep replies short and exam-focused.":"");
+    const out=await callClaude(hist, sys, 900);
     AIC.msgs.push({r:"ai",t:out});
   }catch(e){ AIC.msgs.push({r:"ai",t:"Error: "+e.message}); }
-  AIC.busy=false; render();
+  AIC.busy=false; renderAiDock();
 }
 
-/* ---- in-quiz Ask AI ---- */
-function askAboutQ(){ quiz.qchat=quiz.qchat||{msgs:[],busy:false}; renderQChat(); }
-function renderQChat(){
-  const el=document.getElementById("qchat"); if(!el||!quiz.qchat) return;
-  const c=quiz.qchat;
-  el.innerHTML=`<div class="chat-box" style="margin-top:12px;max-height:280px">
-    ${c.msgs.length? c.msgs.map(m=>`<div class="msg ${m.r}">${esc(m.t)}</div>`).join("")
-      : '<div class="msg think">Ask anything — "explain this like I\'m brand new", "why is option B wrong?", "give me a memory trick"…</div>'}
-    ${c.busy?'<div class="msg think">Thinking…</div>':""}
-  </div>
-  <div class="chat-input"><input id="qchat-in" placeholder="Ask about this question…" onkeydown="if(event.key==='Enter')sendQChat()">
-  <button class="btn small" onclick="sendQChat()">Send</button></div>`;
-  const box=el.querySelector(".chat-box"); box.scrollTop=box.scrollHeight;
-  const inp=document.getElementById("qchat-in"); if(inp) inp.focus();
-}
-async function sendQChat(){
-  const inp=document.getElementById("qchat-in"); const txt=inp?inp.value.trim():"";
-  if(!txt||quiz.qchat.busy) return;
-  const q=quiz.items[quiz.idx];
-  quiz.qchat.msgs.push({r:"user",t:txt}); quiz.qchat.busy=true; renderQChat();
-  const sys="You are a CompTIA A+ tutor. The student just answered this practice question:\nQ: "+q.q
-    +"\nOptions: "+q.o.map((o,i)=>String.fromCharCode(65+i)+") "+o).join(" | ")
-    +"\nCorrect answer: "+String.fromCharCode(65+q.a)+") "+q.o[q.a]
-    +"\nExplanation: "+q.e
-    +"\nThe student answered "+(quiz.answered===q.a?"correctly":"incorrectly, choosing "+String.fromCharCode(65+quiz.answered)+") "+q.o[quiz.answered])
-    +". Answer their follow-up concisely and helpfully.";
-  try{
-    const hist=quiz.qchat.msgs.map(m=>({role:m.r==="user"?"user":"assistant",content:m.t}));
-    const out=await callClaude(hist, sys, 600);
-    quiz.qchat.msgs.push({r:"ai",t:out});
-  }catch(e){ quiz.qchat.msgs.push({r:"ai",t:"Error: "+e.message}); }
-  quiz.qchat.busy=false; renderQChat();
-}
+/* ---- in-quiz Ask AI: opens the context dock, which already sees the question ---- */
+function askAboutQ(){ aiOpen=true; renderAiDock(); const i=document.getElementById("ai-in"); if(i) i.focus(); }
 
 /* ---- AI question generation ---- */
 async function runGen(){
