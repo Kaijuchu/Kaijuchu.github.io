@@ -772,7 +772,7 @@ function load(){
 }
 S.aiQ = S.aiQ||[];  S.apiKey = S.apiKey||"";  S.model = S.model||"claude-haiku-4-5-20251001";
 S.provider = S.provider||"gemini"; S.gemKey = S.gemKey||""; S.gemModel = S.gemModel||"gemini-3-flash";
-S.supaUrl=S.supaUrl||""; S.supaKey=S.supaKey||""; if(S.syncKeys===undefined)S.syncKeys=true; S.updatedAt=S.updatedAt||0;
+S.supaUrl=S.supaUrl||""; S.supaKey=S.supaKey||""; if(S.syncKeys===undefined)S.syncKeys=false; S.updatedAt=S.updatedAt||0; S.encKeys=S.encKeys||null;
 S.theme=S.theme||"dark"; S.quizLen=S.quizLen||10; if(S.shuffleOpts===undefined)S.shuffleOpts=true;
 S.feedback=S.feedback||"each"; S.examDate=S.examDate||""; S.dailyGoal=S.dailyGoal||20;
 S.daily=S.daily||{date:"",count:0}; S.streak=S.streak||{count:0,last:""}; S.sbCollapsed=!!S.sbCollapsed;
@@ -1995,6 +1995,53 @@ function welcomeView(){
     <div class="auth-foot">Your progress syncs across every device you sign in on.</div>
   </div>`;
 }
+/* ================= END-TO-END KEY ENCRYPTION (Option B) =================
+   API keys are encrypted in the browser with a key derived from a passphrase the
+   owner never sees. Only ciphertext is synced. WebCrypto: PBKDF2 → AES-GCM. */
+const ENC={ pass:null };   // passphrase held in memory for this session only
+function b64(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function unb64(s){ return Uint8Array.from(atob(s),c=>c.charCodeAt(0)); }
+async function deriveKey(passphrase,salt){
+  const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(passphrase),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    {name:"PBKDF2",salt:salt,iterations:150000,hash:"SHA-256"},
+    base,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+async function encryptSecret(plaintext,passphrase){
+  const salt=crypto.getRandomValues(new Uint8Array(16));
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const key=await deriveKey(passphrase,salt);
+  const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(plaintext));
+  return { v:1, salt:b64(salt), iv:b64(iv), ct:b64(ct) };
+}
+async function decryptSecret(blob,passphrase){
+  const key=await deriveKey(passphrase,unb64(blob.salt));
+  const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(blob.iv)},key,unb64(blob.ct));
+  return new TextDecoder().decode(pt);
+}
+function keyEncAvailable(){ return typeof crypto!=="undefined" && crypto.subtle; }
+/* Rebuild the encrypted blobs from the current plaintext keys + passphrase.
+   Called before upload so what leaves the device is always ciphertext. */
+async function encryptKeysForSync(){
+  if(!S.syncKeys){ S.encKeys=null; return; }          // sync off: no encrypted keys at all
+  // No passphrase on this device (e.g. not unlocked yet): DON'T touch the existing
+  // ciphertext — wiping it here would destroy the key for every other device.
+  if(!ENC.pass||!keyEncAvailable()) return;
+  const out={};
+  if(S.apiKey) out.apiKey=await encryptSecret(S.apiKey,ENC.pass);
+  if(S.gemKey) out.gemKey=await encryptSecret(S.gemKey,ENC.pass);
+  S.encKeys = (out.apiKey||out.gemKey) ? out : (S.encKeys||null);
+}
+/* After a pull, decrypt any synced blobs if we have the passphrase. */
+async function decryptKeysFromSync(){
+  if(!S.encKeys||!ENC.pass||!keyEncAvailable()) return;
+  try{
+    if(S.encKeys.apiKey) S.apiKey=await decryptSecret(S.encKeys.apiKey,ENC.pass);
+    if(S.encKeys.gemKey) S.gemKey=await decryptSecret(S.encKeys.gemKey,ENC.pass);
+    ENC.badPass=false;
+  }catch(e){ ENC.badPass=true; }   // wrong passphrase — leave local keys untouched
+}
+
 /* ---- merge: counters take the higher value, settings follow the newer device ---- */
 function mergeState(local,remote){
   if(!remote||typeof remote!=="object") return local;
@@ -2026,7 +2073,9 @@ function mergeState(local,remote){
   // unfinished quiz: keep whichever was touched most recently, but never clobber one in progress here
   const lsn=local.session,rsn=remote.session;
   out.session = (quiz&&!quiz.done) ? lsn : ((lsn&&rsn) ? ((lsn.at||0)>=(rsn.at||0)?lsn:rsn) : (lsn||rsn||null));
-  if(!S.syncKeys){ out.apiKey=local.apiKey; out.gemKey=local.gemKey; }   // per-device opt-out
+  // plaintext keys are always device-local; the newer device's encrypted blob wins
+  out.apiKey=local.apiKey; out.gemKey=local.gemKey;
+  out.encKeys = lNew ? (local.encKeys||remote.encKeys) : (remote.encKeys||local.encKeys);
   out.supaUrl=local.supaUrl; out.supaKey=local.supaKey;                  // connection details stay local
   out.userId=local.userId;
   if(out.aiQ.length>400) out.aiQ=out.aiQ.slice(-400);                    // keep storage bounded
@@ -2035,7 +2084,9 @@ function mergeState(local,remote){
 function cloudPayload(){
   const payload=Object.assign({},S);
   delete payload.supaUrl; delete payload.supaKey;   // connection details stay on this device
-  if(!S.syncKeys){ delete payload.apiKey; delete payload.gemKey; }
+  // plaintext keys NEVER leave the device — only the encrypted blob (encKeys) is uploaded
+  delete payload.apiKey; delete payload.gemKey;
+  if(!S.syncKeys) delete payload.encKeys;
   return payload;
 }
 /* Fingerprint of the data a user would actually notice changing — bookkeeping
@@ -2051,6 +2102,7 @@ async function cloudPush(){
   if(CLOUD.lastPushed===stamp) return;              // nothing new since the last upload
   CLOUD.syncing=true;
   try{
+    await encryptKeysForSync();                     // refresh ciphertext before uploading
     const cl=await cloudClient();
     const {error}=await cl.from("progress").upsert({id:CLOUD.user.id,data:cloudPayload(),updated_at:new Date().toISOString()});
     if(error) throw error;
@@ -2072,18 +2124,20 @@ async function cloudSync(silent){
     // If a DIFFERENT account signs in on this device, never merge the previous person's
     // progress into theirs — adopt the incoming account's data instead.
     if(S.userId && S.userId!==CLOUD.user.id){
-      Object.assign(S,{ qstats:{}, sessions:0, aiQ:[], session:null,
+      Object.assign(S,{ qstats:{}, sessions:0, aiQ:[], session:null, encKeys:null,
         daily:{date:"",count:0,hit:false}, streak:{count:0,last:""}, updatedAt:0 });
       for(let i=QUESTIONS.length-1;i>=0;i--) if(QUESTIONS[i].ai) QUESTIONS.splice(i,1);
-      if(!S.syncKeys){ S.apiKey=""; S.gemKey=""; }
+      S.apiKey=""; S.gemKey=""; ENC.pass=null;
       quiz=null;
     }
     S.userId=CLOUD.user.id;
     const merged=mergeState(S,(data&&data.data)||null);
     Object.assign(S,merged);
+    await decryptKeysFromSync();                     // turn synced ciphertext back into usable keys
     (S.aiQ||[]).forEach(q=>{ if(!QUESTIONS.some(x=>x.q===q.q)) QUESTIONS.push(q); });
     changed = syncFingerprint()!==before;
     save();
+    await encryptKeysForSync();                     // ensure ciphertext is current before upload
     const {error:upErr}=await cl.from("progress").upsert({id:CLOUD.user.id,data:cloudPayload(),updated_at:new Date().toISOString()});
     if(upErr) throw upErr;
     CLOUD.lastPushed=S.updatedAt; CLOUD.lastSync=Date.now(); CLOUD.msg="";
@@ -2148,6 +2202,19 @@ async function cloudSignOut(){
   try{ const cl=await cloudClient(); await cl.auth.signOut(); }catch(e){}
   CLOUD.user=null; AUTHUI.mode="in"; AUTHUI.msg=""; CLOUD.msg=""; render();
 }
+async function applyPassphrase(){
+  const el=document.getElementById("enc-pass");
+  const pass=el?el.value:"";
+  if(!pass){ CLOUD.msg="Enter a passphrase first."; render(); return; }
+  ENC.pass=pass; ENC.badPass=false;
+  CLOUD.busy=true; CLOUD.msg="Applying…"; render();
+  // if there's an existing encrypted blob, this attempt either unlocks it or is flagged wrong
+  await decryptKeysFromSync();
+  if(ENC.badPass){ CLOUD.busy=false; CLOUD.msg=""; ENC.pass=null; render(); return; }
+  save();                                   // persist any freshly decrypted keys locally
+  await cloudSync();                         // re-encrypt current keys and push
+  CLOUD.busy=false; CLOUD.msg="Keys encrypted and synced."; render();
+}
 function saveCloudCfg(){
   S.supaUrl=document.getElementById("supa-url").value.trim();
   S.supaKey=document.getElementById("supa-key").value.trim();
@@ -2187,11 +2254,33 @@ function accountCard(){
         <button class="btn small secondary" onclick="S.supaUrl='';S.supaKey='';CLOUD.client=null;save();render()">Change project</button>
       </div>${note}</div>`;
   }
+  const hasSynced = !!S.encKeys && (S.encKeys.apiKey||S.encKeys.gemKey);
+  const unlocked = !!ENC.pass && !ENC.badPass;
+  let keyBlock="";
+  if(S.syncKeys){
+    if(ENC.badPass){
+      keyBlock=`<div class="set-row" style="flex-direction:column;align-items:stretch;gap:8px">
+        <span>Unlock synced keys<div class="muted" style="font-size:.75rem">Wrong passphrase — your encrypted key couldn't be opened.</div></span>
+        <input class="inp" id="enc-pass" type="password" autocomplete="current-password" placeholder="Sync passphrase" onkeydown="if(event.key==='Enter')applyPassphrase()">
+        <button class="btn small" onclick="applyPassphrase()">Unlock</button></div>`;
+    } else if(hasSynced && !unlocked){
+      keyBlock=`<div class="set-row" style="flex-direction:column;align-items:stretch;gap:8px">
+        <span>${ic("db")} Unlock your synced API key<div class="muted" style="font-size:.75rem">Enter the sync passphrase you set. Your browser can remember it.</div></span>
+        <input class="inp" id="enc-pass" type="password" autocomplete="current-password" placeholder="Sync passphrase" onkeydown="if(event.key==='Enter')applyPassphrase()">
+        <button class="btn small" onclick="applyPassphrase()">Unlock &amp; sync</button></div>`;
+    } else {
+      keyBlock=`<div class="set-row" style="flex-direction:column;align-items:stretch;gap:8px">
+        <span>Sync passphrase<div class="muted" style="font-size:.75rem">${unlocked?"Keys are encrypted with this before syncing — I can never read them. Let your browser save it to autofill on other devices.":"Set a passphrase to encrypt your API key before it syncs."}</div></span>
+        <input class="inp" id="enc-pass" type="password" autocomplete="new-password" placeholder="${unlocked?"Change passphrase (optional)":"Choose a sync passphrase"}" value="" onkeydown="if(event.key==='Enter')applyPassphrase()">
+        <button class="btn small" onclick="applyPassphrase()">${unlocked?"Update passphrase":"Set passphrase &amp; encrypt"}</button></div>`;
+    }
+  }
   return `<div class="card"><h2>${ic("db")}Account &amp; sync</h2>
     <div class="set-row"><span>Signed in<div class="muted" style="font-size:.75rem">${esc(CLOUD.user.email||"")}</div></span>
       <span class="pill">${ic("check")} ${ago===null?"connected":ago<60?"synced just now":"synced "+Math.round(ago/60)+" min ago"}</span></div>
-    <div class="set-row"><span>Sync API keys too<div class="muted" style="font-size:.75rem">Convenient, but stores your key in the cloud</div></span>
+    <div class="set-row"><span>Sync my API key across devices<div class="muted" style="font-size:.75rem">End-to-end encrypted with a passphrase only you know</div></span>
       ${seg([[true,"On"],[false,"Off"]],"syncKeys")}</div>
+    ${keyBlock}
     <div class="row" style="margin-top:12px">
       <button class="btn small" ${CLOUD.busy?"disabled":""} onclick="cloudSync()">${CLOUD.busy?"Syncing…":"Sync now"}</button>
       <button class="btn small secondary" onclick="cloudSignOut()">Sign out</button>
