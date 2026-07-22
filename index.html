@@ -70,8 +70,8 @@
   .btn::after{content:"";position:absolute;top:0;left:-75%;width:50%;height:100%;
     background:linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-20deg)}
   .btn:hover::after{left:125%;transition:left .55s ease}
-  .btn.secondary{background:var(--card2);border:1px solid var(--border);color:var(--text);
-    backdrop-filter:blur(12px) saturate(1.5);-webkit-backdrop-filter:blur(12px) saturate(1.5)}
+  .btn.secondary{background:rgba(255,255,255,.10);border:1px solid var(--border);color:var(--text)}
+  body.light .btn.secondary{background:rgba(255,255,255,.7)}
   .btn.small{padding:8px 14px;font-size:.83rem}
   .btn:disabled{opacity:.4;cursor:not-allowed}
   .pill{display:inline-block;background:var(--card2);border:1px solid var(--border);border-radius:14px;
@@ -210,9 +210,7 @@
   .grid2 .card{animation-delay:.14s}
   .result-big{animation:pop .5s cubic-bezier(.2,.7,.3,1) both}
   .overlay{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-  .lab-tile,.focus-item,.pbq-chip,.part{backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
   .lab-tile:hover{box-shadow:0 8px 24px var(--glow)}
-  .opt{backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
   .opt:hover:not(:disabled){transform:translateY(-1px)}
   @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
   /* ---- reference-inspired refinements (Fleek / Fey / Quadrata) ---- */
@@ -225,8 +223,10 @@
     font-family:'Cascadia Mono','Consolas',monospace;border-radius:999px}
   .btn{border-radius:999px;text-transform:uppercase;letter-spacing:.09em;font-size:.78rem;font-weight:700;padding:13px 24px}
   .btn.small{padding:9px 16px;font-size:.68rem}
-  .btn.secondary{background:transparent;border:1px solid var(--border)}
-  .btn.secondary:hover{border-color:var(--text);box-shadow:none}
+  .btn.secondary{background:rgba(255,255,255,.09);border:1px solid var(--border)}
+  body.light .btn.secondary{background:rgba(255,255,255,.7)}
+  .btn.secondary:hover{border-color:var(--text);box-shadow:none;background:rgba(255,255,255,.14)}
+  body.light .btn.secondary:hover{background:rgba(255,255,255,.9)}
   .seg button,.conn-chips button{border-radius:999px}
   .lab-tile,.focus-item{border-radius:16px}
   .bar{height:6px}
@@ -437,9 +437,9 @@
     mix-blend-mode:screen;opacity:.9}
   body.light .card::after{opacity:.55}
   .card2-glow{position:relative}
-  .lab-tile,.focus-item{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.13)}
-  .lab-tile:hover,.focus-item:hover{background:rgba(255,255,255,.085);border-color:rgba(255,255,255,.28)}
-  .opt{background:rgba(255,255,255,.045);border-color:rgba(255,255,255,.12)}
+  .lab-tile,.focus-item{background:rgba(255,255,255,.075);border-color:rgba(255,255,255,.13)}
+  .lab-tile:hover,.focus-item:hover{background:rgba(255,255,255,.11);border-color:rgba(255,255,255,.28)}
+  .opt{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.12)}
   .opt:hover:not(:disabled){background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.3)}
   /* liquid glass tab transition */
   @keyframes glassIn{
@@ -578,8 +578,8 @@
      Blur-free (blur would re-composite the glass buttons a frame late), and we only
      animate each card's DIRECT children so nested toggles ride their row rather than
      double-animating. Everything keeps its final glass look throughout. */
-  @keyframes childRise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-  #app.tab-anim .card > *{animation:childRise .40s cubic-bezier(.2,.7,.3,1) both;animation-delay:.14s}
+  @keyframes childRise{from{opacity:0;transform:translateY(5px) scale(.97)}to{opacity:1;transform:none}}
+  #app.tab-anim .card > *{animation:childRise .34s ease-out both;animation-delay:.14s}
   #app.tab-anim .card > *:nth-child(2){animation-delay:.19s}
   #app.tab-anim .card > *:nth-child(3){animation-delay:.24s}
   #app.tab-anim .card > *:nth-child(4){animation-delay:.29s}
