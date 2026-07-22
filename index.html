@@ -9,7 +9,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop offset='0' stop-color='%23f4f4f5'/><stop offset='1' stop-color='%238b5cf6'/></linearGradient></defs><rect width='64' height='64' rx='14' fill='%230a0a0c'/><rect x='1' y='1' width='62' height='62' rx='13' fill='none' stroke='%23333338' stroke-width='2'/><text x='32' y='43' font-family='Arial' font-size='30' font-weight='800' text-anchor='middle' fill='url(%23g)'>A+</text></svg>">
 <style>
   :root{
-    --bg:#050506; --card:rgba(255,255,255,.035); --card2:rgba(255,255,255,.065); --border:rgba(255,255,255,.09);
+    --bg:#0a0812; --card:rgba(255,255,255,.045); --card2:rgba(255,255,255,.075); --border:rgba(255,255,255,.10);
     --text:#ececee; --muted:#9a9aa3; --accent:#e4e4e7; --accent2:#a1a1aa; --accent-ink:#121216;
     --glow:rgba(255,255,255,.18);
     --good:#3ddc84; --warn:#ffb84d; --bad:#ff5d6c;
@@ -192,14 +192,19 @@
   body.light #c3d{background:radial-gradient(circle at 50% 40%,#dfe7f3,#c2cfe3)}
   /* ---- liquid glass: blobs & motion ---- */
   .bg-blobs{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
-  .blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:.55;animation:drift 20s ease-in-out infinite alternate}
-  .b1{width:46vw;height:46vw;background:#232327;top:-12%;left:-12%}
-  .b2{width:40vw;height:40vw;background:#3c2874;bottom:-18%;right:-10%;opacity:.3;animation-duration:26s;animation-delay:-8s}
-  .b3{width:30vw;height:30vw;background:#1b1b1f;top:42%;left:56%;animation-duration:32s;animation-delay:-15s}
-  body.light .blob{opacity:.4}
-  body.light .b1{background:#9dbcf5}
-  body.light .b2{background:#c4b2f7}
-  body.light .b3{background:#9ad3f2}
+  .blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55;
+    animation:drift 22s ease-in-out infinite alternate;mix-blend-mode:screen}
+  .b1{width:48vw;height:48vw;background:#6a3fd6;top:-14%;left:-12%}
+  .b2{width:44vw;height:44vw;background:#0f9a8e;bottom:-20%;right:-10%;opacity:.5;animation-duration:26s;animation-delay:-8s}
+  .b3{width:38vw;height:38vw;background:#2b62e0;top:40%;left:52%;opacity:.5;animation-duration:32s;animation-delay:-15s}
+  .b4{width:34vw;height:34vw;background:#a83593;top:-10%;right:2%;opacity:.42;animation-duration:28s;animation-delay:-4s}
+  .b5{width:30vw;height:30vw;background:#1c7fd6;bottom:-8%;left:8%;opacity:.4;animation-duration:24s;animation-delay:-12s}
+  body.light .blob{opacity:.5;mix-blend-mode:normal}
+  body.light .b1{background:#a99bff}
+  body.light .b2{background:#8fe0d4}
+  body.light .b3{background:#9dbcff}
+  body.light .b4{background:#f0aede}
+  body.light .b5{background:#a8d4ff}
   @keyframes drift{0%{transform:translate(0,0) scale(1)}100%{transform:translate(7vw,-5vh) scale(1.18)}}
   @keyframes rise{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
   @keyframes pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
@@ -639,7 +644,7 @@
 </style>
 </head>
 <body>
-<div class="bg-blobs"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="cursor-glow" id="cglow"></div></div>
+<div class="bg-blobs"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="blob b4"></div><div class="blob b5"></div><div class="cursor-glow" id="cglow"></div></div>
 <aside id="sidebar">
   <div class="sb-top">
     <span class="sb-brand"><span class="logo-badge"><span class="logo-txt">A+</span></span><span class="lbl">Study Hub</span></span>
@@ -2409,7 +2414,7 @@ function accountCard(){
     if(g) g.style.transform=`translate3d(${state.x*w}px,${state.y*h}px,0)`;
     // blobs drift against the pointer at different depths (parallax)
     const dx=(state.x-.5),dy=(state.y-.5);
-    const depths=[[-34,-24],[26,18],[-18,26]];
+    const depths=[[-34,-24],[26,18],[-18,26],[22,-20],[-26,-16]];
     document.querySelectorAll(".blob").forEach((b,i)=>{
       const d=depths[i]||[0,0];
       b.style.setProperty("--px",(dx*d[0]).toFixed(2)+"px");
