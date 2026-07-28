@@ -2591,9 +2591,11 @@ function accountCard(){
 }
 
 /* ================= LIVING PARTICLE FIELD (canvas) =================
-   Drifting dot cloud on black. Repels from the cursor and bursts from clicks,
-   so the background feels alive. Runs behind everything, ignores pointer events. */
-(function(){
+   Drifting dot cloud on black. Repels from the cursor and bursts from clicks.
+   Runs LAST (after the UI has rendered) and is fully guarded, so a background
+   glitch can never blank the app. */
+function initParticleField(){
+ try{
   if(typeof document==="undefined") return;
   const cv=document.getElementById("bgfx"); if(!cv||!cv.getContext) return;
   const ctx=cv.getContext("2d"); if(!ctx) return;
@@ -2651,7 +2653,8 @@ function accountCard(){
     ctx.fillStyle="rgba("+tint()+",.35)";
     pts.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,6.2832);ctx.fill();});
   } else { raf=requestAnimationFrame(frame); }
-})();
+ }catch(e){ console.warn("Background field disabled:",e); }
+}
 
 /* ================= MISC ================= */
 function confirmReset(){
@@ -2664,8 +2667,9 @@ function confirmReset(){
   for(let i=QUESTIONS.length-1;i>=0;i--) if(QUESTIONS[i].ai) QUESTIONS.splice(i,1);
   save(); quiz=null; lab=null; go("dash");
 }
-render();
+try{ render(); }catch(e){ console.error("Initial render failed:",e); }
 if(typeof cloudInit==="function") cloudInit();
+if(typeof initParticleField==="function") initParticleField();   // decorative bg runs last, never blocks the UI
 </script>
 </body>
 </html>
