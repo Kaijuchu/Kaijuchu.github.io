@@ -794,8 +794,24 @@
   .zone{ border-color:var(--line-soft); color:var(--dim); }
   .zone.done{ border-color:var(--ink); background:var(--card2); color:var(--ink); }
 
-  .welcome-card{ background:var(--bg); border:1px solid var(--line); box-shadow:none; }
-  .welcome-card::after{ display:none; }
+  .welcome-card{ background:var(--card); border:1px solid var(--line); box-shadow:none;
+    border-radius:0; overflow:visible; backdrop-filter:none; -webkit-backdrop-filter:none; }
+  /* HUD corner brackets — same treatment as .card */
+  .welcome-card::after{ content:""; position:absolute; inset:4px; pointer-events:none; z-index:2;
+    box-shadow:none; opacity:1; mix-blend-mode:normal; background:
+      linear-gradient(var(--line),var(--line)) left 0 top 0/10px 1px no-repeat,
+      linear-gradient(var(--line),var(--line)) left 0 top 0/1px 10px no-repeat,
+      linear-gradient(var(--line),var(--line)) right 0 top 0/10px 1px no-repeat,
+      linear-gradient(var(--line),var(--line)) right 0 top 0/1px 10px no-repeat,
+      linear-gradient(var(--line),var(--line)) left 0 bottom 0/10px 1px no-repeat,
+      linear-gradient(var(--line),var(--line)) left 0 bottom 0/1px 10px no-repeat,
+      linear-gradient(var(--line),var(--line)) right 0 bottom 0/10px 1px no-repeat,
+      linear-gradient(var(--line),var(--line)) right 0 bottom 0/1px 10px no-repeat; }
+  /* stray data code, like the panels */
+  .welcome-card::before{ content:"AUTH::0x01"; position:absolute; right:8px; bottom:-1px;
+    font:500 .6rem 'JetBrains Mono',monospace; letter-spacing:.15em; color:var(--faint);
+    background:var(--bg); padding:0 4px; pointer-events:none; z-index:3; }
+  .welcome-card .inp{ background:var(--card2); }
   .oauth-btn{ background:var(--ink); color:var(--bg); border:1px solid var(--ink); box-shadow:none; text-transform:uppercase; letter-spacing:.08em; }
   .oauth-btn:hover:not(:disabled){ transform:none; box-shadow:none; filter:none; background:transparent; color:var(--ink); }
   .auth-tabs{ background:transparent; border:1px solid var(--line); }
@@ -1130,9 +1146,15 @@ function selectQuestions(ids, n, opts){
   all.forEach(q=>{ const st=qstat(q); if(st&&st.retired) return;   // permanently dismissed — never select
     const s=masteryStatus(q);
     (s==="learning"?learning:s==="new"?fresh:s==="due"?due:resting).push(q); });
-  learning.sort((a,b)=>{ const sa=qstat(a),sb=qstat(b);   // wrong-last-time first
-    return (sb&&sb.lastWrong?1:0)-(sa&&sa.lastWrong?1:0); });
-  let ordered=[...shuffle(learning.slice()).sort((a,b)=>{const sa=qstat(a),sb=qstat(b);return (sb&&sb.lastWrong?1:0)-(sa&&sa.lastWrong?1:0);}), ...shuffle(fresh), ...shuffle(due)];
+  // learning priority: wrong-last-time first (need re-learning), then closest-to-mastery
+  // (higher streak) so an in-progress streak actually gets finished instead of buried.
+  const learnOrdered=shuffle(learning.slice()).sort((a,b)=>{
+    const sa=qstat(a)||{}, sb=qstat(b)||{};
+    const wa=sa.lastWrong?1:0, wb=sb.lastWrong?1:0;
+    if(wa!==wb) return wb-wa;
+    return (sb.streak||0)-(sa.streak||0);
+  });
+  let ordered=[...learnOrdered, ...shuffle(fresh), ...shuffle(due)];
   if(ordered.length<n || opts.includeMastered) ordered=ordered.concat(shuffle(resting));
   return ordered.slice(0,n);
 }
