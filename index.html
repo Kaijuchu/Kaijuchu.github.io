@@ -2888,12 +2888,16 @@ function initParticleField(){
   const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let W=0,H=0,DPR=Math.min(window.devicePixelRatio||1,2);
   let pts=[], ripples=[], rects=[], energy=0, raf=null, last=0;
+  let CX=0,CY=0,CLR=0;
   function build(){
-    const n=Math.max(120,Math.min(280,Math.floor(W*H/7000)));
+    CX=W/2; CY=H*0.46; CLR=Math.min(W,H)*0.20;
+    const n=Math.max(160,Math.min(320,Math.floor(W*H/6000)));
     pts=[];
     for(let i=0;i<n;i++){
-      const hx=Math.random()*W, hy=Math.random()*H;
-      pts.push({x:hx,y:hy,vx:0,vy:0,hx,hy,r:Math.random()*1.2+.35,ph:Math.random()*6.283});
+      // each particle lives on a ring inside the central cluster (angle + radius)
+      const a=Math.random()*6.2832, rad=Math.sqrt(Math.random())*CLR*(0.35+Math.random()*0.9);
+      pts.push({a, rad, x:CX+Math.cos(a)*rad, y:CY+Math.sin(a)*rad, vx:0, vy:0,
+                r:Math.random()*1.2+.4, ph:Math.random()*6.2832, sp2:0.7+Math.random()*0.6});
     }
   }
   function refreshRects(){
@@ -2932,38 +2936,40 @@ function initParticleField(){
   }
   function tint(){ return document.body && document.body.classList.contains("light") ? "17,17,20" : "255,255,255"; }
   function frame(now){
-    if(now-last<16){ raf=requestAnimationFrame(frame); return; } last=now;
-    energy*=0.985; if(energy<0.004) energy=0;
+    raf=requestAnimationFrame(frame);
+    if(now-last<20){ return; } last=now;                 // ~50fps, always alive
+    energy*=0.985; if(energy<0.002) energy=0;
     const awake=energy>0.05, rgb=tint();
     ctx.clearRect(0,0,W,H);
-    if(awake) ripples.forEach(s=>s.r+=13); ripples=ripples.filter(s=>s.r<Math.max(W,H)*1.15);
+    ripples.forEach(s=>s.r+=13); ripples=ripples.filter(s=>s.r<Math.max(W,H)*1.15);
+    const rot=now*0.00007;                               // slow cluster rotation
     for(const p of pts){
-      // gentle breathing drift toward a home point — always on, very slow when asleep
-      p.vx+=(p.hx-p.x)*0.0006; p.vy+=(p.hy-p.y)*0.0006;
-      const sway=0.008+energy*0.03;
-      p.vx+=Math.cos(now*0.0004+p.ph)*sway; p.vy+=Math.sin(now*0.00046+p.ph)*sway;
+      // dormant home = a breathing, rotating ring position in the centre cluster
+      const breathe=1 + 0.18*Math.sin(now*0.00075 + p.ph);
+      const hx=CX + Math.cos(p.a+rot)*p.rad*breathe;
+      const hy=CY + Math.sin(p.a+rot)*p.rad*breathe*0.92;
+      const pull=0.022*(1 - energy*0.7);                 // weaker when awake so particles can roam
+      p.vx+=(hx-p.x)*pull; p.vy+=(hy-p.y)*pull;
+      // subtle shimmer so the cluster feels organic, not mechanical
+      p.vx+=Math.cos(now*0.0006+p.ph)*0.06*p.sp2; p.vy+=Math.sin(now*0.0007+p.ph*1.3)*0.06*p.sp2;
       if(awake){
         const nb=nearestBorder(p.x,p.y);
         if(nb){ const R=100; if(nb[2]<R*R){ const d=Math.sqrt(nb[2])||1, f=(1-d/R)*0.9*energy;
           p.vx+=(nb[0]-p.x)/d*f; p.vy+=(nb[1]-p.y)/d*f; } }
         for(const s of ripples){ const dx=p.x-s.x,dy=p.y-s.y,d=Math.hypot(dx,dy)||1;
-          if(Math.abs(d-s.r)<38){ const f=(1-Math.abs(d-s.r)/38)*3.2*energy; p.vx+=dx/d*f; p.vy+=dy/d*f; } }
+          if(Math.abs(d-s.r)<38){ const f=(1-Math.abs(d-s.r)/38)*3.4*energy; p.vx+=dx/d*f; p.vy+=dy/d*f; } }
       }
-      const damp=awake?0.9:0.945; p.vx*=damp; p.vy*=damp; p.x+=p.vx; p.y+=p.vy;
+      p.vx*=0.9; p.vy*=0.9; p.x+=p.vx; p.y+=p.vy;
       const sp=Math.min(1,Math.hypot(p.vx,p.vy)/3);
-      const a=(0.05+energy*0.55)+sp*0.25;              // dim asleep, bright awake
+      const a=(0.30+energy*0.35)+sp*0.2;                 // clearly visible even dormant
       ctx.fillStyle="rgba("+rgb+","+a.toFixed(3)+")";
-      ctx.beginPath(); ctx.arc(p.x,p.y,p.r*(0.7+energy*0.5),0,6.2832); ctx.fill();
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r*(0.85+energy*0.4),0,6.2832); ctx.fill();
     }
-    // keep animating while there's any energy; otherwise stop until the next wake
-    if(energy>0){ raf=requestAnimationFrame(frame); } else { raf=null; ctx.clearRect(0,0,W,H); drawDormant(rgb); }
   }
-  function drawDormant(rgb){                            // a faint still frame while asleep
-    for(const p of pts){ ctx.fillStyle="rgba("+rgb+",0.06)"; ctx.beginPath(); ctx.arc(p.x,p.y,p.r*0.7,0,6.2832); ctx.fill(); }
-  }
+  function drawStatic(rgb){ for(const p of pts){ ctx.fillStyle="rgba("+rgb+",0.28)"; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,6.2832); ctx.fill(); } }
   resize();
-  if(reduce){ drawDormant(tint()); }
-  else { energy=0.75; raf=requestAnimationFrame(frame); }   // boot awake, then settle to sleep
+  if(reduce){ drawStatic(tint()); }
+  else { energy=0.75; raf=requestAnimationFrame(frame); }   // boot energised, then settle into the breathing cluster
  }catch(e){ console.warn("Background field disabled:",e); }
 }
 
