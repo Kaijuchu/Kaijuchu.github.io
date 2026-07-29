@@ -808,28 +808,42 @@
     100%{transform:scaleY(1);filter:brightness(1)} }
   @keyframes bracketSnap{ 0%{opacity:0;inset:16px} 100%{opacity:1;inset:4px} }
   @keyframes hudFade{ from{opacity:0} to{opacity:1} }
+  /* content types in left-to-right, chunky like a terminal printing text */
+  @keyframes typeWipe{ from{ clip-path:inset(0 100% 0 0); opacity:.4 } to{ clip-path:inset(0 0 0 0); opacity:1 } }
   #app.tab-anim>*, #app.tab-anim .grid2>.card{ animation:hudBoot .46s cubic-bezier(.3,.8,.3,1) both; transform-origin:center; }
   #app.tab-anim .card::after{ animation:bracketSnap .34s ease both; animation-delay:.18s; }
   #app.tab-anim .card::before{ animation:hudFade .3s both; animation-delay:.36s; }
-  #app.tab-anim .card > *{ animation:hudFade .3s ease-out both; animation-delay:.26s; }
-  #app.tab-anim .card > *:nth-child(2){ animation-delay:.30s }
-  #app.tab-anim .card > *:nth-child(3){ animation-delay:.34s }
-  #app.tab-anim .card > *:nth-child(4){ animation-delay:.38s }
-  #app.tab-anim .card > *:nth-child(5){ animation-delay:.42s }
-  #app.tab-anim .card > *:nth-child(n+6){ animation-delay:.46s }
+  #app.tab-anim .card > *{ animation:typeWipe .32s steps(16,end) both; animation-delay:.26s; }
+  #app.tab-anim .card > *:nth-child(2){ animation-delay:.31s }
+  #app.tab-anim .card > *:nth-child(3){ animation-delay:.36s }
+  #app.tab-anim .card > *:nth-child(4){ animation-delay:.41s }
+  #app.tab-anim .card > *:nth-child(5){ animation-delay:.46s }
+  #app.tab-anim .card > *:nth-child(n+6){ animation-delay:.51s }
+  /* blinking terminal caret on the key headers */
+  @keyframes caretBlink{ 0%,49%{opacity:1} 50%,100%{opacity:0} }
+  header h1::after{ content:"▋"; margin-left:.14em; color:var(--ink); font-weight:400; animation:caretBlink 1.05s steps(1) infinite; }
+  .qnum::after{ content:"▋"; margin-left:.3em; animation:caretBlink 1.05s steps(1) infinite; }
   .welcome-card{ animation:hudBoot .5s cubic-bezier(.3,.8,.3,1) both; transform-origin:center; }
   @media (prefers-reduced-motion:reduce){
     #app.tab-anim>*,#app.tab-anim .grid2>.card,#app.tab-anim .card::after,#app.tab-anim .card::before,#app.tab-anim .card > *,.welcome-card{ animation:none!important } }
 
-  /* ---- themed HOVER: scanline sweep + border lock ---- */
+  /* ---- themed HOVER: targeting-reticle corner brackets snap in ---- */
   @keyframes sigFlick{ 0%{opacity:1}12%{opacity:.5}24%{opacity:1}38%{opacity:.72}100%{opacity:1} }
-  @keyframes scanDown{ 0%{transform:translateY(-100%);opacity:.9} 100%{transform:translateY(1100%);opacity:0} }
-  .lab-tile,.focus-item,.opt,.gap-item,.conn-chips button,.ai-chips button,.pbq-chip{ position:relative; overflow:hidden; }
+  @keyframes bracketLock{ from{ inset:9px; opacity:0 } to{ inset:3px; opacity:1 } }
+  .lab-tile,.focus-item,.opt,.gap-item,.conn-chips button,.ai-chips button,.pbq-chip{ position:relative; }
   .lab-tile::after,.focus-item::after,.opt::after,.gap-item::after,.conn-chips button::after,.ai-chips button::after,.pbq-chip::after{
-    content:""; position:absolute; left:0; right:0; top:0; height:2px; pointer-events:none; z-index:3;
-    background:linear-gradient(90deg,transparent,var(--ink),transparent); opacity:0; }
+    content:""; position:absolute; inset:3px; pointer-events:none; z-index:3; opacity:0;
+    background:
+      linear-gradient(var(--ink),var(--ink)) left 0 top 0/9px 1.5px no-repeat,
+      linear-gradient(var(--ink),var(--ink)) left 0 top 0/1.5px 9px no-repeat,
+      linear-gradient(var(--ink),var(--ink)) right 0 top 0/9px 1.5px no-repeat,
+      linear-gradient(var(--ink),var(--ink)) right 0 top 0/1.5px 9px no-repeat,
+      linear-gradient(var(--ink),var(--ink)) left 0 bottom 0/9px 1.5px no-repeat,
+      linear-gradient(var(--ink),var(--ink)) left 0 bottom 0/1.5px 9px no-repeat,
+      linear-gradient(var(--ink),var(--ink)) right 0 bottom 0/9px 1.5px no-repeat,
+      linear-gradient(var(--ink),var(--ink)) right 0 bottom 0/1.5px 9px no-repeat; }
   .lab-tile:hover::after,.focus-item:hover::after,.opt:hover:not(:disabled)::after,.gap-item:hover::after,
-  .conn-chips button:hover::after,.ai-chips button:hover::after,.pbq-chip:hover::after{ animation:scanDown .5s linear; }
+  .conn-chips button:hover::after,.ai-chips button:hover::after,.pbq-chip:hover::after{ opacity:1; animation:bracketLock .2s ease-out; }
   .lab-tile:hover,.focus-item:hover,.opt:hover:not(:disabled),.conn-chips button:hover,.ai-chips button:hover,.pbq-chip:hover{ border-color:var(--ink); }
   /* buttons: invert + a fast electric flicker */
   .btn:hover:not(:disabled){ animation:sigFlick .26s steps(1,end); }
