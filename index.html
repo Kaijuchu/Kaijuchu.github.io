@@ -821,8 +821,8 @@
   #app.tab-anim .card > *:nth-child(n+6){ animation-delay:.51s }
   /* blinking terminal caret on the key headers */
   @keyframes caretBlink{ 0%,49%{opacity:1} 50%,100%{opacity:0} }
-  header h1::after{ content:"▋"; margin-left:.14em; color:var(--ink); font-weight:400; animation:caretBlink 1.05s steps(1) infinite; }
-  .qnum::after{ content:"▋"; margin-left:.3em; animation:caretBlink 1.05s steps(1) infinite; }
+  header h1::after{ content:""; display:inline-block; width:2px; height:.95em; margin-left:.16em; vertical-align:-.08em;
+    background:var(--ink); animation:caretBlink 1.05s steps(1) infinite; }
   .welcome-card{ animation:hudBoot .5s cubic-bezier(.3,.8,.3,1) both; transform-origin:center; }
   @media (prefers-reduced-motion:reduce){
     #app.tab-anim>*,#app.tab-anim .grid2>.card,#app.tab-anim .card::after,#app.tab-anim .card::before,#app.tab-anim .card > *,.welcome-card{ animation:none!important } }
