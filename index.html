@@ -1059,30 +1059,73 @@ function save(){
 /* Stats are keyed by a hash of the question text, not its position in the array,
    so adding questions in a future update never scrambles existing progress. */
 function qkey(q){ let h=0; const s=q.q||""; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return "q"+(h>>>0).toString(36); }
-function qs(q){ const k=qkey(q); return S.qstats[k] || (S.qstats[k]={seen:0,right:0,wrong:0,lastWrong:false}); }
+function qs(q){ const k=qkey(q); let s=S.qstats[k];
+  if(!s){ s=S.qstats[k]={seen:0,right:0,wrong:0,lastWrong:false,streak:0,mastered:false,masteredAt:0,reviews:0}; }
+  else{ if(s.streak===undefined)s.streak=0; if(s.mastered===undefined)s.mastered=false; if(s.masteredAt===undefined)s.masteredAt=0; if(s.reviews===undefined)s.reviews=0; }
+  return s;
+}
 function qstat(q){ return S.qstats[qkey(q)]; }
 (function migrateStats(){
   const keys=Object.keys(S.qstats||{});
-  if(!keys.some(k=>/^\d+$/.test(k))) return;      // already migrated
-  const next={};
-  keys.forEach(k=>{
-    if(/^\d+$/.test(k)){ const q=QUESTIONS[+k]; if(q) next[qkey(q)]=S.qstats[k]; }
-    else next[k]=S.qstats[k];
+  if(keys.some(k=>/^\d+$/.test(k))){       // legacy index keys → hash keys
+    const next={};
+    keys.forEach(k=>{ if(/^\d+$/.test(k)){ const q=QUESTIONS[+k]; if(q) next[qkey(q)]=S.qstats[k]; } else next[k]=S.qstats[k]; });
+    S.qstats=next;
+  }
+  // seed mastery for anyone who has history but no mastery fields yet
+  Object.values(S.qstats||{}).forEach(s=>{
+    if(s.mastered===undefined){
+      s.streak = s.lastWrong ? 0 : Math.min(3, s.right||0);
+      s.mastered = (!s.lastWrong && (s.right||0)>=3);
+      s.masteredAt = s.mastered ? Date.now() : 0;
+      s.reviews = s.mastered ? 1 : 0;
+    }
   });
-  S.qstats=next; save();
+  save();
 })();
 
+/* ---- spaced-repetition mastery ----
+   3 correct in a row masters a question (retires it from normal practice).
+   Mastered questions resurface only occasionally, on a widening schedule. */
+const MASTER_STREAK=3, DAY=864e5;
+function reviewInterval(reviews){ return [3,7,21,60][Math.min(reviews||0,3)]*DAY; }
+function isDueForReview(st){ return !!(st && st.mastered && Date.now() >= (st.masteredAt||0)+reviewInterval(st.reviews)); }
+function masteryStatus(q){                 // 'new' | 'learning' | 'due' | 'mastered'
+  const st=qstat(q);
+  if(!st || !st.seen) return "new";
+  if(!st.mastered) return "learning";
+  return isDueForReview(st) ? "due" : "mastered";
+}
+/* Mastery-aware picker: struggling first, then new, then due-for-review; resting-mastered
+   are only used to top up if there aren't enough active questions left. */
+function selectQuestions(ids, n, opts){
+  opts=opts||{};
+  const all=QUESTIONS.map((q,i)=>({...q,i})).filter(q=>ids.includes(q.d));
+  const learning=[],fresh=[],due=[],resting=[];
+  all.forEach(q=>{ const s=masteryStatus(q);
+    (s==="learning"?learning:s==="new"?fresh:s==="due"?due:resting).push(q); });
+  learning.sort((a,b)=>{ const sa=qstat(a),sb=qstat(b);   // wrong-last-time first
+    return (sb&&sb.lastWrong?1:0)-(sa&&sa.lastWrong?1:0); });
+  let ordered=[...shuffle(learning.slice()).sort((a,b)=>{const sa=qstat(a),sb=qstat(b);return (sb&&sb.lastWrong?1:0)-(sa&&sa.lastWrong?1:0);}), ...shuffle(fresh), ...shuffle(due)];
+  if(ordered.length<n || opts.includeMastered) ordered=ordered.concat(shuffle(resting));
+  return ordered.slice(0,n);
+}
 function domainStats(id){
-  let seen=0,right=0;
-  QUESTIONS.forEach(q=>{ const st=qstat(q); if(q.d===id && st){ seen+=st.seen; right+=st.right; }});
-  return {seen, right, acc: seen? right/seen : null};
+  let seen=0,right=0,total=0,mastered=0;
+  QUESTIONS.forEach(q=>{ if(q.d!==id) return; total++; const st=qstat(q);
+    if(st){ seen+=st.seen; right+=st.right; if(st.mastered) mastered++; }});
+  return {seen, right, total, mastered, acc: seen? right/seen : null, masteryFrac: total? mastered/total : 0};
+}
+function masteryTotals(){
+  let total=0,mastered=0;
+  QUESTIONS.forEach(q=>{ total++; const st=qstat(q); if(st&&st.mastered) mastered++; });
+  return {total, mastered};
 }
 function missedList(){ return QUESTIONS.map((q,i)=>({...q,i})).filter(q=>{ const st=qstat(q); return st && st.lastWrong; }); }
 function gapScores(){
   return DOMAINS.map(d=>{
     const st=domainStats(d.id);
-    const acc = st.acc===null ? 0.35 : st.acc; // untested domains treated as weak-ish
-    return {...d, ...st, priority: d.weight*(1-acc)};
+    return {...d, ...st, priority: d.weight*(1-st.masteryFrac)};   // domain leaves the list as you master it
   }).sort((a,b)=>b.priority-a.priority);
 }
 
@@ -1158,16 +1201,17 @@ function dashView(){
   const totalRight=Object.values(S.qstats).reduce((s,q)=>s+q.right,0);
   const overall= totalSeen? Math.round(100*totalRight/totalSeen):null;
   const missed=missedList().length;
+  const mt=masteryTotals();
   const bars=c=>DOMAINS.filter(d=>d.core===c).map(d=>{
-    const st=domainStats(d.id); const pct= st.acc===null?0:Math.round(st.acc*100);
+    const st=domainStats(d.id); const mpct=Math.round(st.masteryFrac*100);
     return `<div class="bar-row"><div class="bar-label"><span>${d.name} <span class="pct">· ${d.weight}% of exam</span></span>
-      <span class="pct">${st.acc===null?"not tested":pct+"% ("+st.right+"/"+st.seen+")"}</span></div>
-      <div class="bar"><div style="width:${st.acc===null?3:pct}%;background:${accColor(st.acc)}"></div></div></div>`;}).join("");
+      <span class="pct">${st.mastered}/${st.total} mastered${st.acc!==null?" · "+Math.round(st.acc*100)+"% acc":""}</span></div>
+      <div class="bar"><div style="width:${Math.max(mpct,2)}%;background:var(--ink)"></div></div></div>`;}).join("");
   return `
   <div class="card center">
-    <div class="muted">Overall accuracy</div>
-    <div class="result-big" style="color:${overall===null?'var(--muted)':overall>=85?'var(--good)':overall>=65?'var(--warn)':'var(--bad)'}">${overall===null?"—":overall+"%"}</div>
-    <div class="muted">${totalSeen} questions answered · ${missed} currently missed</div>
+    <div class="muted">Mastery</div>
+    <div class="result-big">${mt.mastered}<span style="color:var(--dim);font-size:.5em"> / ${mt.total}</span></div>
+    <div class="muted">${mt.mastered} question${mt.mastered===1?"":"s"} mastered${overall!==null?` · ${overall}% overall accuracy`:""} · ${missed} to review</div>
     <div class="row" style="justify-content:center;margin-top:10px">
       ${S.examDate?`<span class="pill">${ic("cal")} ${Math.max(0,Math.ceil((new Date(S.examDate)-new Date(todayStr()))/864e5))} days to exam</span>`:""}
       <span class="pill">${ic("target")} Today ${S.daily.date===todayStr()?S.daily.count:0}/${S.dailyGoal}</span>
@@ -1179,10 +1223,13 @@ function dashView(){
       <button class="btn secondary" ${missed?"":"disabled"} onclick="startQuiz('missed')">Review missed (${missed})</button>
     </div>
   </div>
-  <div class="card"><h2>Knowledge gaps <span class="muted" style="font-weight:400">— highest priority first (exam weight × weakness)</span></h2>
-    ${gaps.slice(0,3).map(g=>`<div class="gap-item"><span>${g.name}<span class="tag ${g.core===1?'c1':'c2'}">Core ${g.core}</span></span>
-      <span class="score" style="color:${accColor(g.acc)}">${g.acc===null?"untested":Math.round(g.acc*100)+"%"}</span></div>`).join("")}
-    <button class="btn small secondary" style="margin-top:6px" onclick="startGapQuiz()">Drill my top gaps</button>
+  <div class="card"><h2>Knowledge gaps <span class="muted" style="font-weight:400">— fewest mastered × exam weight</span></h2>
+    ${(()=>{ const open=gaps.filter(g=>g.priority>0).slice(0,3);
+      if(!open.length) return `<div class="muted">${ic("check")} Every domain fully mastered. Outstanding — keep up the occasional review to stay sharp.</div>`;
+      return open.map(g=>`<div class="gap-item"><span>${g.name}<span class="tag ${g.core===1?'c1':'c2'}">Core ${g.core}</span></span>
+        <span class="score">${g.mastered}/${g.total} mastered</span></div>`).join("")
+        +`<button class="btn small secondary" style="margin-top:6px" onclick="startGapQuiz()">Drill my top gaps</button>`;
+    })()}
   </div>
   <div class="grid2">
     <div class="card"><h3>Core 1 · 220-1201</h3>${bars(1)}</div>
@@ -1196,7 +1243,11 @@ function pool(ids){ return QUESTIONS.map((q,i)=>({...q,i})).filter(q=>ids.includ
 
 function startQuiz(mode){
   let items=[];
-  if(mode==="quick"){ items=shuffle(pool(S.focus.length?S.focus:DOMAINS.map(d=>d.id))).slice(0,S.quizLen); }
+  if(mode==="quick"){
+    const ids=S.focus.length?S.focus:DOMAINS.map(d=>d.id);
+    items=selectQuestions(ids,S.quizLen);
+    if(!items.length){ items=selectQuestions(ids,S.quizLen,{includeMastered:true}); }  // all mastered → maintenance
+  }
   else if(mode==="missed"){ items=shuffle(missedList()); }
   else if(mode==="core1"||mode==="core2"){
     const core=mode==="core2"?2:1, n=20;
@@ -1242,15 +1293,38 @@ function sessionCard(){
     </div></div>`;
 }
 function startGapQuiz(){
-  const top=gapScores().slice(0,3).map(g=>g.id);
-  const items=shuffle(pool(top)).slice(0,12);
-  quiz={items:prep(items), idx:0, right:0, answered:null, results:[]};
+  const top=gapScores().filter(g=>g.priority>0).slice(0,3).map(g=>g.id);
+  const ids=top.length?top:gapScores().slice(0,3).map(g=>g.id);
+  let items=selectQuestions(ids,12);
+  if(!items.length) items=selectQuestions(ids,12,{includeMastered:true});
+  quiz={items:prep(items), idx:0, right:0, answered:null, results:[], gap:true};
   tab="quiz"; persistSession(); render();
+}
+/* instantly retire a question you already know, before answering it */
+function retireQuestion(){
+  if(!quiz||quiz.answered!==null) return;
+  const q=quiz.items[quiz.idx], st=qs(q);
+  st.mastered=true; st.masteredAt=Date.now(); st.streak=MASTER_STREAK;
+  st.reviews=Math.max(st.reviews||0,1); st.seen=Math.max(st.seen||0,1);
+  quiz.retired=(quiz.retired||0)+1;
+  quiz.items.splice(quiz.idx,1);
+  if(quiz.items.length===0){ quiz.done=true; S.sessions++; }
+  else if(quiz.idx>=quiz.items.length){ quiz.idx=quiz.items.length-1; }
+  quiz.answered=null; save(); persistSession(); render();
 }
 function answer(k){
   if(quiz.answered!==null) return;
-  const q=quiz.items[quiz.idx], st=qs(q), ok=(k===q.a);
+  const q=quiz.items[quiz.idx], st=qs(q), ok=(k===q.a), wasMastered=st.mastered;
   quiz.answered=k; st.seen++; ok?(st.right++,quiz.right++):st.wrong++;
+  if(ok){
+    st.streak=(st.streak||0)+1;
+    if(st.mastered){ st.reviews=(st.reviews||0)+1; st.masteredAt=Date.now(); }  // maintenance pass → push next review out
+    else if(st.streak>=MASTER_STREAK){ st.mastered=true; st.masteredAt=Date.now(); st.reviews=0; }
+  } else {
+    st.streak=0; if(st.mastered) st.mastered=false;                              // demote on miss
+  }
+  quiz.becameMastered = ok && !wasMastered && st.mastered;
+  if(quiz.becameMastered) quiz.justMastered=(quiz.justMastered||0)+1;
   st.lastWrong=!ok; quiz.results.push({q,ok});
   const t=todayStr();
   if(S.daily.date!==t) S.daily={date:t,count:0,hit:false};
@@ -1311,13 +1385,16 @@ function quizSetupView(){
 }
 function quizView(){
   if(quiz.done){
-    const pct=Math.round(100*quiz.right/quiz.items.length);
+    const pct=quiz.items.length?Math.round(100*quiz.right/quiz.items.length):0;
     const byDom={};
     quiz.results.forEach(r=>{ byDom[r.q.d]=byDom[r.q.d]||{r:0,t:0}; byDom[r.q.d].t++; if(r.ok)byDom[r.q.d].r++; });
+    const totalM=(quiz.justMastered||0)+(quiz.retired||0);
+    const answered=quiz.results.length;
     return `<div class="card center">
       <h2>Session complete</h2>
-      <div class="result-big" style="color:${pct>=85?'var(--good)':pct>=65?'var(--warn)':'var(--bad)'}">${pct}%</div>
-      <div class="muted">${quiz.right} / ${quiz.items.length} correct</div></div>
+      <div class="result-big" style="color:${pct>=85?'var(--good)':pct>=65?'var(--warn)':'var(--bad)'}">${answered?pct+"%":"—"}</div>
+      <div class="muted">${quiz.right} / ${Math.max(answered,quiz.items.length)} correct</div>
+      ${totalM?`<div class="pill" style="margin-top:12px;display:inline-block">${ic("check")} ${totalM} question${totalM>1?"s":""} mastered this session</div>`:""}</div>
     <div class="card"><h3>By domain this session</h3>
       ${Object.entries(byDom).map(([d,v])=>{const dom=DOMAINS.find(x=>x.id===d);
         return `<div class="stat-line"><span>${dom.name}</span><span style="color:${accColor(v.r/v.t)}">${v.r}/${v.t}</span></div>`;}).join("")}
@@ -1329,9 +1406,12 @@ function quizView(){
     <button class="btn secondary" onclick="go('dash')">Dashboard</button></div>`;
   }
   const q=quiz.items[quiz.idx], dom=DOMAINS.find(d=>d.id===q.d), a=quiz.answered;
+  const status=masteryStatus(q), st=qstat(q), strk=st?(st.streak||0):0;
+  const mLabel = status==="due" ? "REVIEW" : status==="mastered" ? "MASTERED"
+    : status==="new" ? "NEW" : "LEARNING "+"◆".repeat(strk)+"◇".repeat(Math.max(0,MASTER_STREAK-strk));
   return `<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
-      <div class="qnum">Question ${quiz.idx+1} of ${quiz.items.length} · ${esc(dom.name)}<span class="tag ${dom.core===1?'c1':'c2'}">Core ${dom.core}</span>${q.ai?`<span class="tag" style="background:rgba(167,139,250,.2);color:#a78bfa">AI</span>`:""}</div>
+      <div class="qnum">Question ${quiz.idx+1} of ${quiz.items.length} · ${esc(dom.name)}<span class="tag ${dom.core===1?'c1':'c2'}">Core ${dom.core}</span>${q.ai?`<span class="tag" style="background:rgba(167,139,250,.2);color:#a78bfa">AI</span>`:""}<span class="tag" title="Mastery: 3 correct in a row retires a question">${mLabel}</span></div>
       <button class="ai-close" title="End quiz" onclick="endQuiz()">✕</button>
     </div>
     <div class="question">${esc(q.q)}</div>
@@ -1343,10 +1423,13 @@ function quizView(){
       }
       return `<button class="${cls}" ${a!==null?"disabled":""} onclick="answer(${oi})">${String.fromCharCode(65+pos)}. ${esc(q.o[oi])}</button>`;
     }).join("")}
+    ${a===null?`<button class="btn secondary small" style="margin-top:2px" onclick="retireQuestion()" title="Retire this question — you already know it">${ic("check")} I already know this</button>`:""}
     ${a!==null?( S.feedback==="end"
       ? `<div class="muted" style="margin:6px 0 12px">Answer recorded — results at the end, like the real exam.</div>
          <button class="btn" onclick="nextQ()">${quiz.idx+1>=quiz.items.length?"Finish":"Next question"}</button>`
       : `<div class="explain">${a===q.a?OKI+" Correct. ":BADI+" Not quite. "}${esc(q.e)}</div>
+      ${quiz.becameMastered?`<div class="explain" style="border-left-color:var(--ink);margin-top:-4px"><b>${ic("check")} MASTERED</b> — you've got this 3 times running. It's retired from practice and will only resurface occasionally for review.</div>`:
+        (a===q.a&&status!=="mastered"&&status!=="due"?`<div class="muted" style="margin:-4px 0 10px;font-size:.78rem">${"◆".repeat(strk)+"◇".repeat(Math.max(0,MASTER_STREAK-strk))} ${MASTER_STREAK-strk} more in a row to master</div>`:"")}
       <div class="row">
         <button class="btn" onclick="nextQ()">${quiz.idx+1>=quiz.items.length?"Finish":"Next question"}</button>
         <button class="btn secondary" onclick="askAboutQ()">${ic("sparkles")} Ask AI about this</button>
