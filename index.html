@@ -2876,9 +2876,10 @@ function accountCard(){
 }
 
 /* ================= LIVING PARTICLE FIELD (canvas) =================
-   Drifting dot cloud on black. Repels from the cursor and bursts from clicks.
-   Runs LAST (after the UI has rendered) and is fully guarded, so a background
-   glitch can never blank the app. */
+   A dot field that SLEEPS when the page is idle and WAKES on interaction with
+   the page itself (clicks, keys, tab changes, scroll). Awake, particles gather
+   around the borders of the on-screen cards and ripple out from clicks — it
+   never follows the cursor. Runs last and is fully guarded. */
 function initParticleField(){
  try{
   if(typeof document==="undefined") return;
@@ -2886,53 +2887,83 @@ function initParticleField(){
   const ctx=cv.getContext("2d"); if(!ctx) return;
   const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let W=0,H=0,DPR=Math.min(window.devicePixelRatio||1,2);
-  let pts=[], mouse={x:-1e5,y:-1e5,on:false}, shocks=[], raf=null, last=0;
+  let pts=[], ripples=[], rects=[], energy=0, raf=null, last=0;
   function build(){
-    // denser dot cloud now that there are no links to draw
-    const n=Math.max(130,Math.min(300,Math.floor(W*H/6500)));
+    const n=Math.max(120,Math.min(280,Math.floor(W*H/7000)));
     pts=[];
     for(let i=0;i<n;i++){
       const hx=Math.random()*W, hy=Math.random()*H;
       pts.push({x:hx,y:hy,vx:0,vy:0,hx,hy,r:Math.random()*1.2+.35,ph:Math.random()*6.283});
     }
   }
+  function refreshRects(){
+    rects=[].slice.call(document.querySelectorAll(".card,#ai-panel,.welcome-card"))
+      .map(el=>{ const r=el.getBoundingClientRect(); return {l:r.left,t:r.top,r:r.right,b:r.bottom}; })
+      .filter(r=>r.r-r.l>40 && r.b-r.t>20 && r.b>0 && r.t<H);
+  }
   function resize(){
     W=window.innerWidth; H=window.innerHeight;
     cv.style.width=W+"px"; cv.style.height=H+"px";
     cv.width=Math.floor(W*DPR); cv.height=Math.floor(H*DPR);
     ctx.setTransform(DPR,0,0,DPR,0,0);
-    build();
+    build(); refreshRects();
   }
+  function wake(amount){ energy=Math.min(1,energy+(amount||0.55)); if(!raf&&!reduce) raf=requestAnimationFrame(frame); }
+  function ripple(x,y){ ripples.push({x,y,r:0}); wake(1); }
+  // wake on PAGE interaction — not cursor movement
   window.addEventListener("resize",resize);
-  window.addEventListener("pointermove",e=>{ mouse.x=e.clientX; mouse.y=e.clientY; mouse.on=true; },{passive:true});
-  window.addEventListener("pointerdown",e=>{ shocks.push({x:e.clientX,y:e.clientY,r:0}); },{passive:true});
-  window.addEventListener("blur",()=>{ mouse.on=false; });
+  window.addEventListener("scroll",()=>{ refreshRects(); wake(0.35); },{passive:true});
+  window.addEventListener("keydown",()=>wake(0.5));
+  window.addEventListener("click",e=>{ refreshRects(); ripple(e.clientX,e.clientY); });
+  setInterval(()=>{ if(energy>0.02) refreshRects(); }, 700);
+  // nearest point on any card's border, plus squared distance
+  function nearestBorder(px,py){
+    let bx=0,by=0,bd=1e9;
+    for(const R of rects){
+      let nx=px<R.l?R.l:px>R.r?R.r:px, ny=py<R.t?R.t:py>R.b?R.b:py;
+      if(px>R.l&&px<R.r&&py>R.t&&py<R.b){                 // inside → snap to nearest edge
+        const dl=px-R.l,dr=R.r-px,dt=py-R.t,db=R.b-py,m=Math.min(dl,dr,dt,db);
+        if(m===dl){nx=R.l;ny=py;} else if(m===dr){nx=R.r;ny=py;} else if(m===dt){nx=px;ny=R.t;} else {nx=px;ny=R.b;}
+      }
+      const dx=px-nx,dy=py-ny,dd=dx*dx+dy*dy;
+      if(dd<bd){bd=dd;bx=nx;by=ny;}
+    }
+    return bd<1e9?[bx,by,bd]:null;
+  }
   function tint(){ return document.body && document.body.classList.contains("light") ? "17,17,20" : "255,255,255"; }
   function frame(now){
-    raf=requestAnimationFrame(frame);
-    if(now-last<16) return; last=now;
-    const rgb=tint();
+    if(now-last<16){ raf=requestAnimationFrame(frame); return; } last=now;
+    energy*=0.985; if(energy<0.004) energy=0;
+    const awake=energy>0.05, rgb=tint();
     ctx.clearRect(0,0,W,H);
-    shocks.forEach(s=>s.r+=13); shocks=shocks.filter(s=>s.r<Math.max(W,H)*1.15);
+    if(awake) ripples.forEach(s=>s.r+=13); ripples=ripples.filter(s=>s.r<Math.max(W,H)*1.15);
     for(const p of pts){
-      // spring back toward home + slow organic swirl = the "breathing" drift
-      p.vx+=(p.hx-p.x)*0.0007; p.vy+=(p.hy-p.y)*0.0007;
-      p.vx+=Math.cos(now*0.0004+p.ph)*0.018; p.vy+=Math.sin(now*0.00046+p.ph)*0.018;
-      if(mouse.on){ const dx=p.x-mouse.x, dy=p.y-mouse.y, d2=dx*dx+dy*dy, R=135;
-        if(d2<R*R){ const d=Math.sqrt(d2)||1, f=(1-d/R)*2.4; p.vx+=dx/d*f; p.vy+=dy/d*f; } }
-      for(const s of shocks){ const dx=p.x-s.x, dy=p.y-s.y, d=Math.hypot(dx,dy)||1;
-        if(Math.abs(d-s.r)<38){ const f=(1-Math.abs(d-s.r)/38)*3.2; p.vx+=dx/d*f; p.vy+=dy/d*f; } }
-      p.vx*=0.9; p.vy*=0.9; p.x+=p.vx; p.y+=p.vy;
+      // gentle breathing drift toward a home point — always on, very slow when asleep
+      p.vx+=(p.hx-p.x)*0.0006; p.vy+=(p.hy-p.y)*0.0006;
+      const sway=0.008+energy*0.03;
+      p.vx+=Math.cos(now*0.0004+p.ph)*sway; p.vy+=Math.sin(now*0.00046+p.ph)*sway;
+      if(awake){
+        const nb=nearestBorder(p.x,p.y);
+        if(nb){ const R=100; if(nb[2]<R*R){ const d=Math.sqrt(nb[2])||1, f=(1-d/R)*0.9*energy;
+          p.vx+=(nb[0]-p.x)/d*f; p.vy+=(nb[1]-p.y)/d*f; } }
+        for(const s of ripples){ const dx=p.x-s.x,dy=p.y-s.y,d=Math.hypot(dx,dy)||1;
+          if(Math.abs(d-s.r)<38){ const f=(1-Math.abs(d-s.r)/38)*3.2*energy; p.vx+=dx/d*f; p.vy+=dy/d*f; } }
+      }
+      const damp=awake?0.9:0.945; p.vx*=damp; p.vy*=damp; p.x+=p.vx; p.y+=p.vy;
       const sp=Math.min(1,Math.hypot(p.vx,p.vy)/3);
-      ctx.fillStyle="rgba("+rgb+","+(0.20+sp*0.65).toFixed(3)+")";
-      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,6.2832); ctx.fill();
+      const a=(0.05+energy*0.55)+sp*0.25;              // dim asleep, bright awake
+      ctx.fillStyle="rgba("+rgb+","+a.toFixed(3)+")";
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r*(0.7+energy*0.5),0,6.2832); ctx.fill();
     }
+    // keep animating while there's any energy; otherwise stop until the next wake
+    if(energy>0){ raf=requestAnimationFrame(frame); } else { raf=null; ctx.clearRect(0,0,W,H); drawDormant(rgb); }
+  }
+  function drawDormant(rgb){                            // a faint still frame while asleep
+    for(const p of pts){ ctx.fillStyle="rgba("+rgb+",0.06)"; ctx.beginPath(); ctx.arc(p.x,p.y,p.r*0.7,0,6.2832); ctx.fill(); }
   }
   resize();
-  if(reduce){ // one static frame
-    ctx.fillStyle="rgba("+tint()+",.35)";
-    pts.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,6.2832);ctx.fill();});
-  } else { raf=requestAnimationFrame(frame); }
+  if(reduce){ drawDormant(tint()); }
+  else { energy=0.75; raf=requestAnimationFrame(frame); }   // boot awake, then settle to sleep
  }catch(e){ console.warn("Background field disabled:",e); }
 }
 
