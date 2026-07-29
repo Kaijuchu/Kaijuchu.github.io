@@ -1096,7 +1096,7 @@ function qstat(q){ return S.qstats[qkey(q)]; }
    Mastered questions resurface only occasionally, on a widening schedule. */
 const MASTER_STREAK=3, DAY=864e5;
 function reviewInterval(reviews){ return [3,7,21,60][Math.min(reviews||0,3)]*DAY; }
-function isDueForReview(st){ return !!(st && st.mastered && Date.now() >= (st.masteredAt||0)+reviewInterval(st.reviews)); }
+function isDueForReview(st){ return !!(st && st.mastered && !st.retired && Date.now() >= (st.masteredAt||0)+reviewInterval(st.reviews)); }
 function masteryStatus(q){                 // 'new' | 'learning' | 'due' | 'mastered'
   const st=qstat(q);
   if(!st || !st.seen) return "new";
@@ -1109,7 +1109,8 @@ function selectQuestions(ids, n, opts){
   opts=opts||{};
   const all=QUESTIONS.map((q,i)=>({...q,i})).filter(q=>ids.includes(q.d));
   const learning=[],fresh=[],due=[],resting=[];
-  all.forEach(q=>{ const s=masteryStatus(q);
+  all.forEach(q=>{ const st=qstat(q); if(st&&st.retired) return;   // permanently dismissed — never select
+    const s=masteryStatus(q);
     (s==="learning"?learning:s==="new"?fresh:s==="due"?due:resting).push(q); });
   learning.sort((a,b)=>{ const sa=qstat(a),sb=qstat(b);   // wrong-last-time first
     return (sb&&sb.lastWrong?1:0)-(sa&&sa.lastWrong?1:0); });
@@ -1314,9 +1315,10 @@ async function startGapQuiz(){
 }
 /* instantly retire a question you already know, before answering it */
 function retireQuestion(){
-  if(!quiz||quiz.answered!==null) return;
+  if(!quiz) return;
   const q=quiz.items[quiz.idx], st=qs(q);
-  st.mastered=true; st.masteredAt=Date.now(); st.streak=MASTER_STREAK;
+  // permanent dismissal — retired questions never resurface, even for spaced review
+  st.mastered=true; st.retired=true; st.masteredAt=Date.now(); st.streak=MASTER_STREAK;
   st.reviews=Math.max(st.reviews||0,1); st.seen=Math.max(st.seen||0,1);
   quiz.retired=(quiz.retired||0)+1;
   quiz.items.splice(quiz.idx,1);
@@ -1435,7 +1437,7 @@ function quizView(){
       }
       return `<button class="${cls}" ${a!==null?"disabled":""} onclick="answer(${oi})">${String.fromCharCode(65+pos)}. ${esc(q.o[oi])}</button>`;
     }).join("")}
-    ${a===null?`<button class="btn secondary small" style="margin-top:2px" onclick="retireQuestion()" title="Retire this question — you already know it">${ic("check")} I already know this</button>`:""}
+    ${a===null&&(status==="mastered"||status==="due")?`<button class="btn secondary small" style="margin-top:2px" onclick="retireQuestion()" title="Dismiss this question for good — it won't come back">${ic("check")} Don't show this again</button>`:""}
     ${a!==null?( S.feedback==="end"
       ? `<div class="muted" style="margin:6px 0 12px">Answer recorded — results at the end, like the real exam.</div>
          <button class="btn" onclick="nextQ()">${quiz.idx+1>=quiz.items.length?"Finish":"Next question"}</button>`
