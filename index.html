@@ -797,6 +797,12 @@
 
   .result-big{ font-family:'JetBrains Mono',monospace; letter-spacing:.02em; }
   .overlay{ background:rgba(0,0,0,.8); }
+  #genbanner:empty{ display:none; }
+  #genbanner{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:60; }
+  .genbanner-inner{ display:flex; align-items:center; gap:9px; background:var(--bg); border:1px solid var(--line);
+    color:var(--ink); padding:11px 18px; font-size:.8rem; text-transform:uppercase; letter-spacing:.08em;
+    box-shadow:0 8px 30px rgba(0,0,0,.6); animation:hudFade .3s both; }
+  .genbanner-inner .ui-ic{ animation:sigFlick .8s steps(1) infinite; }
 
   /* ---- HUD boot-in: panels power on like a CRT, brackets snap, content reveals ---- */
   @keyframes hudBoot{
@@ -894,7 +900,7 @@
   </header>
   <div id="app"></div>
 </div>
-<div id="modal-root"></div>
+<div id="genbanner"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -1037,6 +1043,7 @@ function load(){
 S.aiQ = S.aiQ||[];  S.apiKey = S.apiKey||"";  S.model = S.model||"claude-haiku-4-5-20251001";
 S.provider = S.provider||"gemini"; S.gemKey = S.gemKey||""; S.gemModel = S.gemModel||"gemini-3-flash";
 S.supaUrl=S.supaUrl||""; S.supaKey=S.supaKey||""; if(S.syncKeys===undefined)S.syncKeys=false; S.updatedAt=S.updatedAt||0; S.encKeys=S.encKeys||null;
+if(S.autoGen===undefined)S.autoGen=true;
 S.theme=S.theme||"dark"; S.quizLen=S.quizLen||10; if(S.shuffleOpts===undefined)S.shuffleOpts=true;
 S.feedback=S.feedback||"each"; S.examDate=S.examDate||""; S.dailyGoal=S.dailyGoal||20;
 S.daily=S.daily||{date:"",count:0}; S.streak=S.streak||{count:0,last:""}; S.sbCollapsed=!!S.sbCollapsed;
@@ -1131,7 +1138,7 @@ function gapScores(){
 
 /* ================= NAV / RENDER ================= */
 const TABS=[["dash","Dashboard"],["quiz","Practice"],["labs","Learn"],["focus","Focus"],["grow","Grow"],["set","Settings"]];
-let tab="dash", quiz=null, lab=null, sbOpen=false, aiOpen=false, lastTab=null;
+let tab="dash", quiz=null, lab=null, sbOpen=false, aiOpen=false, lastTab=null, GENBANNER="";
 /* terminal/HUD nav glyphs — geometric, square-capped, monochrome */
 const SVGI=(cls,inner)=>`<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter">${inner}</svg>`;
 const NAV_ICONS={
@@ -1175,6 +1182,8 @@ function render(){ nav();
   else if(tab==="grow") el.innerHTML=growView();
   if(switched){ el.classList.remove("tab-anim"); void el.offsetWidth; el.classList.add("tab-anim"); }
   lastTab=tab;
+  const gb=document.getElementById("genbanner");
+  if(gb) gb.innerHTML = GENBANNER ? `<div class="genbanner-inner">${ic("zap")} ${esc(GENBANNER)}</div>` : "";
   renderAiDock();
   stampCards();
   afterRender();
@@ -1677,6 +1686,7 @@ function settingsView(){
       <option value="claude-sonnet-5" ${S.model==="claude-sonnet-5"?"selected":""}>Claude Sonnet 5 — smarter, pricier</option>
     </select>
     <button class="btn small" onclick="saveAI()">Save AI settings</button>`}
+    <div class="set-row" style="margin-top:4px"><span>Auto-generate when running low<div class="muted" style="font-size:.75rem">When a weak domain runs low on practice questions, the AI quietly makes more before your quiz</div></span>${seg([[true,"On"],[false,"Off"]],"autoGen")}</div>
   </div>
   <div class="card"><h2>${ic("sliders")}Appearance</h2>
     <div class="set-row"><span>Theme</span>${seg([["dark",ic("moon")+"Dark"],["light",ic("sun")+"Light"]],"theme")}</div>
@@ -1859,9 +1869,11 @@ async function generateForDomain(domId, n){
   QUESTIONS.push(...good); S.aiQ.push(...good); save();
   return good;
 }
-/* how many practisable (un-mastered/new/due) questions remain in these domains */
+/* how much genuinely un-mastered material remains (new + still-learning).
+   Due-for-review (already mastered) doesn't count — if everything's mastered we
+   want fresh questions, not just maintenance repeats. */
 function activeCount(ids){
-  return QUESTIONS.filter(q=>ids.includes(q.d)).filter(q=>masteryStatus(q)!=="mastered").length;
+  return QUESTIONS.filter(q=>ids.includes(q.d)).filter(q=>{ const s=masteryStatus(q); return s==="new"||s==="learning"; }).length;
 }
 /* auto top-up: if enabled + AI ready + a target domain is running low on practisable
    questions, quietly generate a batch first. Shows a transient banner. */
@@ -1876,7 +1888,6 @@ async function maybeTopUp(ids){
   catch(e){ /* silent: fall back to whatever exists */ }
   GENBANNER="";
 }
-let GENBANNER="";
 async function runGen(){
   const sel=document.getElementById("gen-dom"); const btn=document.getElementById("gen-btn");
   const msg=document.getElementById("gen-msg");
