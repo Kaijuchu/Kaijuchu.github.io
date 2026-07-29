@@ -739,6 +739,14 @@
   #app.tab-anim .bar>div{ animation:barFill .6s steps(14,end) both; animation-delay:.28s; }
   @media (prefers-reduced-motion:reduce){ #app.tab-anim .bar>div{ animation:none!important } }
 
+  /* LED-block mastery meter — identical treatment to the .gb-bar loader */
+  .segbar{ display:flex; gap:3px; height:15px; align-items:stretch; }
+  .segbar i{ flex:1 1 0; min-width:0; background:var(--line-soft); }
+  .segbar i.on{ background:var(--ink); box-shadow:0 0 6px var(--glow); }
+  @keyframes segLight{ 0%{ background:var(--line-soft); box-shadow:none } 100%{ background:var(--ink); box-shadow:0 0 6px var(--glow) } }
+  #app.tab-anim .segbar i.on{ animation:segLight .3s steps(1,end) both; animation-delay:calc(.28s + var(--sd)); }
+  @media (prefers-reduced-motion:reduce){ #app.tab-anim .segbar i.on{ animation:none!important } }
+
   .opt{ background:transparent; border:1px solid var(--line-soft); color:var(--ink);
     font-family:'JetBrains Mono',monospace; }
   .opt:hover:not(:disabled){ border-color:var(--line); background:var(--card2); transform:none; }
@@ -1251,6 +1259,11 @@ function afterRender(){
 
 /* ================= DASHBOARD ================= */
 function accColor(a){ return a===null?"var(--muted)": a>=0.85?"var(--good)": a>=0.65?"var(--warn)":"var(--bad)"; }
+/* discrete LED-block meter — same look as the AI loading bar (.gb-bar) */
+function segBar(frac,segs){ segs=segs||28; frac=Math.max(0,Math.min(1,frac||0));
+  const on=frac>0?Math.max(1,Math.round(frac*segs)):0; let s="";
+  for(let i=0;i<segs;i++) s+=`<i class="${i<on?"on":""}" style="--sd:${(i*0.02).toFixed(2)}s"></i>`;
+  return `<div class="segbar">${s}</div>`; }
 function dashView(){
   const gaps=gapScores();
   const totalSeen=Object.values(S.qstats).reduce((s,q)=>s+q.seen,0);
@@ -1262,7 +1275,7 @@ function dashView(){
     const st=domainStats(d.id); const mpct=Math.round(st.masteryFrac*100);
     return `<div class="bar-row"><div class="bar-label"><span>${d.name} <span class="pct">· ${d.weight}% of exam</span></span>
       <span class="pct">${st.mastered}/${st.total} mastered${st.acc!==null?" · "+Math.round(st.acc*100)+"% acc":""}</span></div>
-      <div class="bar"><div style="--w:${Math.max(mpct,2)}%"></div></div></div>`;}).join("");
+      ${segBar(st.masteryFrac)}</div>`;}).join("");
   return `
   <div class="card center">
     <div class="muted">Mastery</div>
@@ -2061,7 +2074,7 @@ function courseView(id){
   const d=DOMAINS.find(x=>x.id===id), secs=COURSES[id]||[], p=courseProgress(id);
   const back=`<button class="btn small secondary" style="margin-bottom:12px" onclick="lab=null;render()">← All courses</button>`;
   return back+`<div class="card"><h2>${esc(d.name)}<span class="tag">Core ${d.core}</span><span class="tag">${d.weight}% of exam</span></h2>
-    <div class="bar" style="margin-bottom:6px"><div style="--w:${Math.max(Math.round(p.frac*100),2)}%"></div></div>
+    <div style="margin-bottom:6px">${segBar(p.frac)}</div>
     <div class="muted" style="font-size:.78rem">${p.done}/${p.total} questions in this domain mastered</div>
   </div>
   ${secs.map((s,i)=>`<div class="card"><h2>${String(i+1).padStart(2,"0")} · ${esc(s.h)}</h2>
