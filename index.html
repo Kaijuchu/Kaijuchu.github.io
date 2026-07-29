@@ -725,10 +725,19 @@
   .pill,.tag{ background:transparent; border:1px solid var(--line-soft); color:var(--dim);
     text-transform:uppercase; letter-spacing:.1em; font-weight:500; }
 
-  .bar{ background:var(--card2); border:1px solid var(--line-soft); height:9px; }
-  .bar>div{ background:var(--ink)!important; }
+  /* segmented terminal meter — discrete blocks like an ASCII loading bar */
+  .bar{ height:15px; border:1px solid var(--line); background:transparent; overflow:hidden; position:relative;
+    background-image:repeating-linear-gradient(90deg,var(--line-soft) 0 7px,transparent 7px 11px);
+    background-position:2px 0; }
+  .bar>div{ height:100%; width:var(--w,0%); background:var(--ink)!important;
+    -webkit-mask:repeating-linear-gradient(90deg,#000 0 7px,transparent 7px 11px);
+            mask:repeating-linear-gradient(90deg,#000 0 7px,transparent 7px 11px);
+    -webkit-mask-position:2px 0; mask-position:2px 0;
+    box-shadow:0 0 6px var(--glow); }
   .bar>div::after{ display:none!important; }
-  body:not(.light) .bar>div{ background:repeating-linear-gradient(90deg,var(--ink) 0 3px,transparent 3px 5px)!important; }
+  @keyframes barFill{ from{width:0} to{width:var(--w,0%)} }
+  #app.tab-anim .bar>div{ animation:barFill .6s steps(14,end) both; animation-delay:.28s; }
+  @media (prefers-reduced-motion:reduce){ #app.tab-anim .bar>div{ animation:none!important } }
 
   .opt{ background:transparent; border:1px solid var(--line-soft); color:var(--ink);
     font-family:'JetBrains Mono',monospace; }
@@ -1217,7 +1226,7 @@ function dashView(){
     const st=domainStats(d.id); const mpct=Math.round(st.masteryFrac*100);
     return `<div class="bar-row"><div class="bar-label"><span>${d.name} <span class="pct">· ${d.weight}% of exam</span></span>
       <span class="pct">${st.mastered}/${st.total} mastered${st.acc!==null?" · "+Math.round(st.acc*100)+"% acc":""}</span></div>
-      <div class="bar"><div style="width:${Math.max(mpct,2)}%;background:var(--ink)"></div></div></div>`;}).join("");
+      <div class="bar"><div style="--w:${Math.max(mpct,2)}%"></div></div></div>`;}).join("");
   return `
   <div class="card center">
     <div class="muted">Mastery</div>
@@ -2014,7 +2023,7 @@ function courseView(id){
   const d=DOMAINS.find(x=>x.id===id), secs=COURSES[id]||[], p=courseProgress(id);
   const back=`<button class="btn small secondary" style="margin-bottom:12px" onclick="lab=null;render()">← All courses</button>`;
   return back+`<div class="card"><h2>${esc(d.name)}<span class="tag">Core ${d.core}</span><span class="tag">${d.weight}% of exam</span></h2>
-    <div class="bar" style="margin-bottom:6px"><div style="width:${Math.max(Math.round(p.frac*100),2)}%;background:var(--ink)"></div></div>
+    <div class="bar" style="margin-bottom:6px"><div style="--w:${Math.max(Math.round(p.frac*100),2)}%"></div></div>
     <div class="muted" style="font-size:.78rem">${p.done}/${p.total} questions in this domain mastered</div>
   </div>
   ${secs.map((s,i)=>`<div class="card"><h2>${String(i+1).padStart(2,"0")} · ${esc(s.h)}</h2>
