@@ -741,9 +741,10 @@
 
   /* LED-block mastery meter — identical treatment to the .gb-bar loader */
   .segbar{ display:flex; gap:3px; height:15px; align-items:stretch; }
-  .segbar i{ flex:1 1 0; min-width:0; background:var(--line-soft); }
+  /* empty segments are hollow slots (clearly "off"); only mastered segments light up */
+  .segbar i{ flex:1 1 0; min-width:0; background:transparent; box-shadow:inset 0 0 0 1px var(--line-soft); }
   .segbar i.on{ background:var(--ink); box-shadow:0 0 6px var(--glow); }
-  @keyframes segLight{ 0%{ background:var(--line-soft); box-shadow:none } 100%{ background:var(--ink); box-shadow:0 0 6px var(--glow) } }
+  @keyframes segLight{ 0%{ background:transparent; box-shadow:inset 0 0 0 1px var(--line-soft) } 100%{ background:var(--ink); box-shadow:0 0 6px var(--glow) } }
   #app.tab-anim .segbar i.on{ animation:segLight .3s steps(1,end) both; animation-delay:calc(.28s + var(--sd)); }
   @media (prefers-reduced-motion:reduce){ #app.tab-anim .segbar i.on{ animation:none!important } }
 
@@ -2505,7 +2506,8 @@ const SUPA_URL_BAKED = "https://vynscxllkbmgdxfpsrwj.supabase.co";
 const SUPA_KEY_BAKED = "sb_publishable_2P0J_2SAUJ1sJyGtyWiGwA_m8VEzuMI";
 const REQUIRE_AUTH   = true;      // everyone signs in before using the app
 const CLOUD={ sdk:null, client:null, user:null, guest:false, busy:false, msg:"", applying:false, timer:null,
-              lastSync:null, checking:false, syncing:false, lastPushed:null, providers:null };
+              lastSync:null, checking:true, syncing:false, lastPushed:null, providers:null };
+              // checking starts true so the first paint is the session splash — never a half-loaded dashboard
 const AUTHUI={ mode:"in", busy:false, msg:"" };
 function cloudCfg(){ return { url:(S.supaUrl||SUPA_URL_BAKED||"").trim(), key:(S.supaKey||SUPA_KEY_BAKED||"").trim() }; }
 function cloudConfigured(){ const c=cloudCfg(); return !!(c.url&&c.key); }
@@ -2539,7 +2541,7 @@ async function fetchProviders(){
   }catch(e){ CLOUD.providers={google:false,apple:false,email:true,signups:true}; }
 }
 async function cloudInit(){
-  if(!cloudConfigured()) return;
+  if(!cloudConfigured()){ CLOUD.checking=false; render(); return; }
   CLOUD.checking=true; render();
   // never let the "checking session" splash stick if Supabase is unreachable (e.g. sandboxed preview)
   setTimeout(()=>{ if(CLOUD.checking){ CLOUD.checking=false; render(); } }, 4000);
