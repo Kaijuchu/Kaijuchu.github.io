@@ -2695,9 +2695,17 @@ function mergeState(local,remote){
   keys.forEach(k=>{
     const a=(local.qstats||{})[k], b=(remote.qstats||{})[k];
     if(!a){ stats[k]=b; return; } if(!b){ stats[k]=a; return; }
-    const primary=(a.seen||0)>=(b.seen||0)?a:b;
-    stats[k]={ seen:Math.max(a.seen||0,b.seen||0), right:Math.max(a.right||0,b.right||0),
-               wrong:Math.max(a.wrong||0,b.wrong||0), lastWrong:primary.lastWrong };
+    const primary=(a.seen||0)>=(b.seen||0)?a:b;   // most-seen copy = most recent history
+    // keep ALL of the more-recent copy's fields (streak, mastered, masteredAt, reviews…),
+    // max the monotonic counters, and make mastery/retirement sticky so a sync can't undo it.
+    stats[k]={ ...primary,
+               seen:Math.max(a.seen||0,b.seen||0), right:Math.max(a.right||0,b.right||0),
+               wrong:Math.max(a.wrong||0,b.wrong||0), lastWrong:primary.lastWrong,
+               mastered:!!(a.mastered||b.mastered),
+               masteredAt:Math.max(a.masteredAt||0,b.masteredAt||0),
+               reviews:Math.max(a.reviews||0,b.reviews||0),
+               streak:Math.max(a.streak||0,b.streak||0),
+               retired:!!(a.retired||b.retired) };
   });
   out.qstats=stats;
   // AI-generated questions: union by question text
