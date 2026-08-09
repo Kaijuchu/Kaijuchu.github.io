@@ -1138,6 +1138,7 @@ function qstat(q){ return S.qstats[qkey(q)]; }
    3 correct in a row masters a question (retires it from normal practice).
    Mastered questions resurface only occasionally, on a widening schedule. */
 const MASTER_STREAK=3, DAY=864e5;
+const GAP_CLEAR=0.8;   // a domain drops off "knowledge gaps" once this fraction of it is mastered
 function reviewInterval(reviews){ return [3,7,21,60][Math.min(reviews||0,3)]*DAY; }
 function isDueForReview(st){ return !!(st && st.mastered && !st.retired && Date.now() >= (st.masteredAt||0)+reviewInterval(st.reviews)); }
 function masteryStatus(q){                 // 'new' | 'learning' | 'due' | 'mastered'
@@ -1182,7 +1183,9 @@ function missedList(){ return QUESTIONS.map((q,i)=>({...q,i})).filter(q=>{ const
 function gapScores(){
   return DOMAINS.map(d=>{
     const st=domainStats(d.id);
-    return {...d, ...st, priority: d.weight*(1-st.masteryFrac)};   // domain leaves the list as you master it
+    // once a domain is mostly mastered it's no longer a "gap" — priority 0 drops it from the list
+    const priority = st.masteryFrac>=GAP_CLEAR ? 0 : d.weight*(1-st.masteryFrac);
+    return {...d, ...st, priority, cleared: st.masteryFrac>=GAP_CLEAR};
   }).sort((a,b)=>b.priority-a.priority);
 }
 
@@ -1295,7 +1298,7 @@ function dashView(){
   </div>
   <div class="card"><h2>Knowledge gaps <span class="muted" style="font-weight:400">— fewest mastered × exam weight</span></h2>
     ${(()=>{ const open=gaps.filter(g=>g.priority>0).slice(0,3);
-      if(!open.length) return `<div class="muted">${ic("check")} Every domain fully mastered. Outstanding — keep up the occasional review to stay sharp.</div>`;
+      if(!open.length) return `<div class="muted">${ic("check")} No active knowledge gaps — you've mastered the bulk of every domain. Keep up the occasional review to stay sharp.</div>`;
       return open.map(g=>`<div class="gap-item"><span>${g.name}<span class="tag ${g.core===1?'c1':'c2'}">Core ${g.core}</span></span>
         <span class="score">${g.mastered}/${g.total} mastered</span></div>`).join("")
         +`<button class="btn small secondary" style="margin-top:6px" onclick="startGapQuiz()">Drill my top gaps</button>`;
@@ -1942,8 +1945,12 @@ function activeCount(ids){
    questions, quietly generate a batch first. Shows a transient banner. */
 async function maybeTopUp(ids){
   if(!S.autoGen || !aiReady() || AIBUSY) return;
+  // only top up domains that are still genuinely weak — never re-inflate one you've
+  // mostly mastered, otherwise the growing pool keeps it stuck as a "gap" forever
+  const weak=ids.filter(id=>domainStats(id).masteryFrac<GAP_CLEAR);
+  if(!weak.length) return;
   // pick the target domain with the fewest active questions
-  const target=ids.map(id=>({id,n:activeCount([id])})).sort((a,b)=>a.n-b.n)[0];
+  const target=weak.map(id=>({id,n:activeCount([id])})).sort((a,b)=>a.n-b.n)[0];
   if(!target || target.n>=Math.max(4,S.quizLen)) return;    // enough to practise → skip
   const dom=DOMAINS.find(d=>d.id===target.id);
   AIBUSY=true; GENBANNER="Topping up "+dom.name+" — creating fresh questions…"; render();
