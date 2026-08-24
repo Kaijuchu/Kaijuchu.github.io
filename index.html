@@ -1438,6 +1438,18 @@ function quizSetupView(){
       <button class="btn secondary" onclick="startQuiz('core2')">Core 2 sim · 20 Q</button>
     </div>
   </div>
+  <div class="card"><h2>Domain practice <span class="muted" style="font-weight:400">— all questions in one domain, shuffled</span></h2>
+    <div class="muted" style="margin-bottom:10px">Pick a domain to test everything you've learned about it.</div>
+    <select id="domain-test-select" style="width:100%;background:rgba(10,15,26,.5);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:11px 13px;font-size:.9rem;margin-bottom:10px">
+      <optgroup label="Core 1 · 220-1201">
+        ${DOMAINS.filter(d=>d.core===1).map(d=>`<option value="${d.id}">${esc(d.name)} (${QUESTIONS.filter(q=>q.d===d.id).length} questions)</option>`).join("")}
+      </optgroup>
+      <optgroup label="Core 2 · 220-1202">
+        ${DOMAINS.filter(d=>d.core===2).map(d=>`<option value="${d.id}">${esc(d.name)} (${QUESTIONS.filter(q=>q.d===d.id).length} questions)</option>`).join("")}
+      </optgroup>
+    </select>
+    <button class="btn" onclick="startDomainTest(document.getElementById('domain-test-select').value)">Start domain test</button>
+  </div>
   <div class="card"><h2>Review</h2>
     <button class="btn secondary" ${missed?"":"disabled"} onclick="startQuiz('missed')">Retry all missed questions (${missed})</button>
     <div class="muted" style="margin-top:8px">Questions leave this list once you answer them correctly.</div>
@@ -1489,7 +1501,7 @@ function quizView(){
     : status==="new" ? "NEW" : "LEARNING "+"◆".repeat(strk)+"◇".repeat(Math.max(0,MASTER_STREAK-strk));
   return `<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
-      <div class="qnum">Question ${quiz.idx+1} of ${quiz.items.length} · ${esc(dom.name)}<span class="tag ${dom.core===1?'c1':'c2'}">Core ${dom.core}</span>${q.ai?`<span class="tag" style="background:rgba(167,139,250,.2);color:#a78bfa">AI</span>`:""}<span class="tag" title="Mastery: 3 correct in a row retires a question">${mLabel}</span></div>
+      <div class="qnum">Question ${quiz.idx+1} of ${quiz.items.length} · ${esc(dom.name)}<span class="tag ${dom.core===1?'c1':'c2'}">Core ${dom.core}</span>${quiz.domainId===dom.id?`<span class="tag" style="background:rgba(255,184,77,.2);color:var(--warn)">DOMAIN TEST</span>`:""}${q.ai?`<span class="tag" style="background:rgba(167,139,250,.2);color:#a78bfa">AI</span>`:""}<span class="tag" title="Mastery: 3 correct in a row retires a question">${mLabel}</span></div>
       <button class="ai-close" title="End quiz" onclick="endQuiz()">✕</button>
     </div>
     <div class="question">${esc(q.q)}</div>
@@ -2103,6 +2115,14 @@ function labView(){
   if(lab==="term") return back+termView();
   if(lab==="pc") return back+pcView();
   return back;
+}
+/* practice ALL questions in a single domain (shuffled, no mastery filter) */
+async function startDomainTest(id){
+  if(AIBUSY) return;
+  const domQuestions=QUESTIONS.filter(q=>q.d===id);
+  if(!domQuestions.length){ alert("No questions for this domain yet."); return; }
+  quiz={items:prep(shuffle(domQuestions)),idx:0,right:0,answered:null,results:[],domainId:id};
+  tab="quiz"; persistSession(); render();
 }
 /* practice a single domain (from a course) — mastery-aware + auto top-up */
 async function startDomainQuiz(id){
