@@ -992,7 +992,7 @@ function examPassFor(core){ return core===2?EXAM.core2.pass:EXAM.core1.pass; }
    q: question, o: options, a: index of correct, e: explanation */
 const QUESTIONS = [
 /* ---- Mobile Devices (Core 1, 13%) ---- */
-{d:"mobile",q:"What type of RAM module is used in most laptops?",o:["DIMM","SO-DIMM","ECC RDIMM","SIMM"],a:1,e:"Laptops use SO-DIMM (Small Outline DIMM) — a physically smaller module than the full-size DIMMs in desktops."},
+{d:"mobile",q:"You are upgrading a laptop for a remote user and need to order RAM. Which module type do you order for a typical laptop?",o:["DIMM","SO-DIMM","ECC RDIMM","SIMM"],a:1,e:"Laptops use SO-DIMM (Small Outline DIMM) — a physically smaller module than the full-size DIMMs in desktops."},
 {d:"mobile",q:"A user wants email on their phone to stay synchronized with the server so messages read on the phone show as read everywhere. Which protocol should be used?",o:["POP3","SMTP","IMAP","FTP"],a:2,e:"IMAP keeps mail on the server and syncs state across devices. POP3 downloads (and typically deletes) mail locally. SMTP only sends mail."},
 {d:"mobile",q:"Which technology lets a company enforce passcodes, push apps, and remotely wipe employee smartphones?",o:["VPN","MDM","NFC","DRM"],a:1,e:"Mobile Device Management (MDM) is the enterprise tool for enforcing policy, deploying apps, and remote-wiping managed devices."},
 {d:"mobile",q:"A phone's screen displays correctly but doesn't respond to touch. Which component has most likely failed?",o:["The LCD panel","The digitizer","The GPU","The inverter"],a:1,e:"The digitizer is the touch-sensing layer. If the image is fine but touch fails, the digitizer is the likely culprit; a broken LCD would show display artifacts."},
@@ -1004,24 +1004,24 @@ const QUESTIONS = [
 {d:"mobile",q:"Which connector is standard for charging and data on modern Android phones and newer iPhones?",o:["Lightning","Micro-USB","USB-C","Mini-USB"],a:2,e:"USB-C is now the universal standard — the EU mandate moved iPhone from Lightning to USB-C as well."},
 
 /* ---- Networking (Core 1, 23%) ---- */
-{d:"net",q:"Which port does HTTPS use?",o:["80","110","443","3389"],a:2,e:"HTTPS uses TCP 443. HTTP is 80, POP3 is 110, RDP is 3389. Port numbers are heavily tested — memorize the table."},
+{d:"net",q:"You are a help-desk tech and a user cannot reach https://intranet — the firewall log shows blocked outbound. Which port must you allow? — Select ONE",o:["80","110","443","3389"],a:2,e:"HTTPS uses TCP 443. HTTP is 80, POP3 is 110, RDP is 3389. Port numbers are heavily tested — memorize the table."},
 {d:"net",q:"Which port is used by SSH?",o:["21","22","23","25"],a:1,e:"SSH uses TCP 22. FTP is 20/21, Telnet is 23 (insecure), SMTP is 25."},
 {d:"net",q:"A workstation shows an IP address of 169.254.10.15. What does this indicate?",o:["A static IP was assigned","DHCP failed — APIPA address","The DNS server is down","The subnet mask is wrong"],a:1,e:"169.254.x.x is APIPA — Windows self-assigns it when no DHCP server responds. Classic exam question."},
-{d:"net",q:"Which service translates domain names like google.com into IP addresses?",o:["DHCP","DNS","NAT","SNMP"],a:1,e:"DNS resolves names to IPs (port 53). DHCP assigns addresses; NAT translates private↔public addresses."},
+{d:"net",q:"A ticket says 'internet works by IP but not by name — ping 8.8.8.8 works, ping google.com fails.' Which service is failing?",o:["DHCP","DNS","NAT","SNMP"],a:1,e:"DNS resolves names to IPs (port 53). DHCP assigns addresses; NAT translates private↔public addresses."},
 {d:"net",q:"Which 802.11 standard is marketed as Wi-Fi 6?",o:["802.11n","802.11ac","802.11ax","802.11g"],a:2,e:"802.11ax = Wi-Fi 6 (and 6E on the 6 GHz band). 802.11ac = Wi-Fi 5, 802.11n = Wi-Fi 4."},
-{d:"net",q:"Which wireless encryption standard is currently the most secure?",o:["WEP","WPA","WPA2","WPA3"],a:3,e:"WPA3 is the latest and strongest, adding SAE handshakes. WEP and WPA are broken; WPA2 is the widespread minimum."},
-{d:"net",q:"Which cable category supports 10 Gbps up to 100 meters?",o:["Cat5","Cat5e","Cat6","Cat6a"],a:3,e:"Cat6a handles 10GBASE-T at the full 100 m. Cat6 does 10 Gbps only to ~55 m; Cat5e tops out at 1 Gbps."},
+{d:"net",q:"You are hardening a SOHO router. The owner asks for the strongest Wi-Fi security available today. Which do you choose?",o:["WEP","WPA","WPA2","WPA3"],a:3,e:"WPA3 is the latest and strongest, adding SAE handshakes. WEP and WPA are broken; WPA2 is the widespread minimum."},
+{d:"net",q:"A customer needs 10 Gbps to every desk at 100 m. Which cable category do you spec for the new run?",o:["Cat5","Cat5e","Cat6","Cat6a"],a:3,e:"Cat6a handles 10GBASE-T at the full 100 m. Cat6 does 10 Gbps only to ~55 m; Cat5e tops out at 1 Gbps."},
 {d:"net",q:"Which fiber type is used for long-distance runs, using a laser light source?",o:["Multimode (MMF)","Single-mode (SMF)","Coaxial","Twinaxial"],a:1,e:"Single-mode fiber has a tiny core and laser source for long distances (kilometers). Multimode uses LEDs for shorter, cheaper runs."},
 {d:"net",q:"Which device connects multiple devices on a LAN and forwards frames based on MAC addresses?",o:["Hub","Router","Switch","Modem"],a:2,e:"A switch learns MAC addresses and forwards intelligently. A hub blindly repeats to all ports; a router forwards between networks using IP addresses."},
 {d:"net",q:"What technology lets many devices on a private network share one public IP address?",o:["DHCP","DNS","NAT","VLAN"],a:2,e:"Network Address Translation (NAT) maps private internal addresses to a public one at the router — how home networks reach the internet."},
 {d:"net",q:"Which port does RDP (Remote Desktop Protocol) use?",o:["22","53","143","3389"],a:3,e:"RDP uses TCP 3389. SSH 22, DNS 53, IMAP 143."},
 
 /* ---- Hardware (Core 1, 25%) ---- */
-{d:"hw",q:"Which RAID level mirrors data across two drives with no striping?",o:["RAID 0","RAID 1","RAID 5","RAID 10"],a:1,e:"RAID 1 = mirroring (redundancy, half capacity). RAID 0 = striping (speed, no redundancy). RAID 5 = striping with parity (3+ drives). RAID 10 = mirror + stripe (4+ drives)."},
+{d:"hw",q:"A small business wants simple redundancy for two 2TB drives and asks you to recommend the RAID level that mirrors with no striping. Which do you choose?",o:["RAID 0","RAID 1","RAID 5","RAID 10"],a:1,e:"RAID 1 = mirroring (redundancy, half capacity). RAID 0 = striping (speed, no redundancy). RAID 5 = striping with parity (3+ drives). RAID 10 = mirror + stripe (4+ drives)."},
 {d:"hw",q:"Which RAID level requires at least three drives and uses distributed parity?",o:["RAID 0","RAID 1","RAID 5","RAID 10"],a:2,e:"RAID 5 stripes data with parity across 3+ drives and can survive one drive failure. RAID 10 needs 4 drives; RAID 0/1 need 2."},
 {d:"hw",q:"Which storage interface offers the fastest speeds for an M.2 SSD?",o:["SATA III","NVMe (PCIe)","IDE","SCSI"],a:1,e:"NVMe runs over PCIe lanes and vastly outperforms SATA III (~600 MB/s cap). An M.2 slot may carry either — NVMe is the fast one."},
 {d:"hw",q:"Which PCIe slot size is standard for installing a graphics card?",o:["x1","x4","x8","x16"],a:3,e:"GPUs use PCIe x16 slots for maximum bandwidth. x1/x4 slots host NICs, sound cards, and other low-bandwidth cards."},
-{d:"hw",q:"In a laser printer, which component melts toner onto the paper?",o:["Drum","Transfer belt","Fuser assembly","Pickup roller"],a:2,e:"The fuser uses heat and pressure to bond toner to paper — which is why pages exit warm, and why smearing that wipes off points to a fuser fault."},
+{d:"hw",q:"A user complains laser prints smudge when touched right after printing. As the tech, which component do you suspect has failed?",o:["Drum","Transfer belt","Fuser assembly","Pickup roller"],a:2,e:"The fuser uses heat and pressure to bond toner to paper — which is why pages exit warm, and why smearing that wipes off points to a fuser fault."},
 {d:"hw",q:"What is the correct order of the laser printing process?",o:["Charging, exposing, processing, developing, transferring, fusing, cleaning","Processing, charging, exposing, developing, transferring, fusing, cleaning","Exposing, charging, developing, processing, fusing, transferring, cleaning","Processing, exposing, charging, transferring, developing, cleaning, fusing"],a:1,e:"Processing → charging → exposing → developing → transferring → fusing → cleaning. A consistent drag-and-drop PBQ topic."},
 {d:"hw",q:"Which motherboard form factor is the smallest of these?",o:["ATX","Micro-ATX","Mini-ITX","E-ATX"],a:2,e:"Mini-ITX (17×17 cm) < Micro-ATX < ATX < E-ATX. Smaller boards have fewer expansion slots."},
 {d:"hw",q:"Which type of RAM detects and corrects single-bit memory errors, and is common in servers?",o:["DDR5 non-ECC","ECC RAM","SO-DIMM","VRAM"],a:1,e:"ECC (Error-Correcting Code) RAM fixes single-bit errors on the fly — standard in servers and workstations where data integrity matters."},
@@ -1055,8 +1055,8 @@ const QUESTIONS = [
 
 /* ---- Operating Systems (Core 2, 28%) ---- */
 {d:"os",q:"Which hardware component is required to upgrade a PC to Windows 11?",o:["TPM 2.0","A discrete GPU","ECC RAM","An optical drive"],a:0,e:"Windows 11 requires TPM 2.0, Secure Boot-capable UEFI, and a supported CPU. TPM questions are a favorite on the 220-1202."},
-{d:"os",q:"Which Windows edition feature encrypts an entire drive and can use the TPM chip?",o:["EFS","BitLocker","Windows Hello","Storage Spaces"],a:1,e:"BitLocker is full-disk encryption (Pro and up), often keyed via TPM. EFS encrypts individual files/folders, not the whole disk."},
-{d:"os",q:"Which command scans and repairs corrupted Windows system files?",o:["chkdsk /f","sfc /scannow","diskpart","ipconfig /flushdns"],a:1,e:"sfc /scannow (System File Checker) verifies and repairs protected system files. chkdsk checks the disk/file system instead."},
+{d:"os",q:"A laptop with TPM 2.0 needs full-disk encryption so a stolen drive is unreadable. Which Windows feature do you enable?",o:["EFS","BitLocker","Windows Hello","Storage Spaces"],a:1,e:"BitLocker is full-disk encryption (Pro and up), often keyed via TPM. EFS encrypts individual files/folders, not the whole disk."},
+{d:"os",q:"Windows shows random crashes and SFC-related errors. You decide to scan and repair protected system files. Which command do you run?",o:["chkdsk /f","sfc /scannow","diskpart","ipconfig /flushdns"],a:1,e:"sfc /scannow (System File Checker) verifies and repairs protected system files. chkdsk checks the disk/file system instead."},
 {d:"os",q:"Which command checks a disk for file system errors and bad sectors?",o:["sfc /scannow","chkdsk","gpupdate","netstat"],a:1,e:"chkdsk scans the volume; /f fixes errors, /r locates bad sectors. sfc repairs system files, not the disk."},
 {d:"os",q:"Which Linux command changes file permissions?",o:["chown","chmod","grep","ps"],a:1,e:"chmod changes permissions (e.g., chmod 755 file). chown changes ownership. Linux basics are new on the 220-1202."},
 {d:"os",q:"Which Linux command searches for text patterns inside files?",o:["find","ls","grep","kill"],a:2,e:"grep searches file contents for a pattern (grep 'error' log.txt). find locates files by name/attributes; ls just lists."},
@@ -1068,9 +1068,9 @@ const QUESTIONS = [
 
 /* ---- Security (Core 2, 28%) ---- */
 {d:"sec",q:"Which malware type encrypts a victim's files and demands payment for the decryption key?",o:["Worm","Trojan","Ransomware","Spyware"],a:2,e:"Ransomware encrypts data and extorts payment. Best defense: tested offline backups."},
-{d:"sec",q:"Which malware hides deep in the OS, often concealing itself from antivirus and Task Manager?",o:["Adware","Rootkit","Keylogger","Worm"],a:1,e:"Rootkits gain privileged access and hide their presence — often requiring boot-time scans or a full rebuild to remove."},
+{d:"sec",q:"A PC acts infected but no AV or Task Manager process is visible. As incident responder, which malware type do you suspect is hiding deep in the OS?",o:["Adware","Rootkit","Keylogger","Worm"],a:1,e:"Rootkits gain privileged access and hide their presence — often requiring boot-time scans or a full rebuild to remove."},
 {d:"sec",q:"An attacker calls pretending to be the help desk and asks a user for their password. What is this attack?",o:["Phishing","Vishing","Smishing","Tailgating"],a:1,e:"Vishing = voice phishing (phone). Phishing = email, smishing = SMS. Know all three definitions cold."},
-{d:"sec",q:"An unauthorized person slips through a secure door right behind an employee who badged in. What is this called?",o:["Shoulder surfing","Tailgating","Dumpster diving","Evil twin"],a:1,e:"Tailgating (piggybacking) is following an authorized person through access control. Mantraps/access control vestibules prevent it."},
+{d:"sec",q:"You review badge logs and see an unauthorized person entered by walking in directly behind an employee who swiped. What is this physical attack called?",o:["Shoulder surfing","Tailgating","Dumpster diving","Evil twin"],a:1,e:"Tailgating (piggybacking) is following an authorized person through access control. Mantraps/access control vestibules prevent it."},
 {d:"sec",q:"Which principle states users should only have the access needed to do their job — and nothing more?",o:["Zero-day","Least privilege","Single sign-on","Non-repudiation"],a:1,e:"Least privilege limits blast radius when an account is compromised. It's the core of access control design."},
 {d:"sec",q:"A user logs in with a password plus a code from an authenticator app. What is this an example of?",o:["Single sign-on","Multifactor authentication","Least privilege","Biometrics"],a:1,e:"MFA combines factors: something you know (password) + something you have (app/token) or are (biometric)."},
 {d:"sec",q:"An attacker sets up a rogue Wi-Fi access point with the same SSID as a coffee shop's network to intercept traffic. What is this attack?",o:["Evil twin","War driving","Bluejacking","DDoS"],a:0,e:"An evil twin impersonates a legitimate AP so victims connect through the attacker. VPNs and HTTPS mitigate the damage."},
@@ -1092,7 +1092,7 @@ const QUESTIONS = [
 {d:"swts",q:"Which symptom most strongly suggests active malware rather than a hardware problem?",o:["POST beep codes","Security software and Task Manager are disabled","A clicking hard drive","Dead pixels"],a:1,e:"Malware commonly disables defenses (AV, Task Manager, Registry Editor) to protect itself. The other options are hardware symptoms."},
 
 /* ---- Operational Procedures (Core 2, 21%) ---- */
-{d:"ops",q:"What does the 3-2-1 backup rule specify?",o:["3 backups, 2 clouds, 1 password","3 copies of data, 2 different media types, 1 offsite","3 drives, 2 partitions, 1 OS","3 daily, 2 weekly, 1 monthly backup"],a:1,e:"Keep 3 copies of your data, on 2 different media types, with 1 copy offsite. Tested directly on the exam."},
+{d:"ops",q:"You are advising a client on backup strategy and cite the 3-2-1 rule. What does that rule actually specify?",o:["3 backups, 2 clouds, 1 password","3 copies of data, 2 different media types, 1 offsite","3 drives, 2 partitions, 1 OS","3 daily, 2 weekly, 1 monthly backup"],a:1,e:"Keep 3 copies of your data, on 2 different media types, with 1 copy offsite. Tested directly on the exam."},
 {d:"ops",q:"Which backup type copies only files changed since the LAST backup of any kind?",o:["Full","Differential","Incremental","Synthetic"],a:2,e:"Incremental = changes since the last backup of any type (fast backup, slower restore). Differential = all changes since the last FULL backup (grows daily, faster restore)."},
 {d:"ops",q:"Which backup type backs up everything changed since the last FULL backup?",o:["Incremental","Differential","Snapshot","Mirror"],a:1,e:"Differential grows each day until the next full backup. Restore needs just the full + latest differential — fewer sets than incremental."},
 {d:"ops",q:"What is the primary tool for preventing electrostatic discharge while working inside a PC?",o:["Rubber gloves","Antistatic wrist strap","A wooden desk","A surge protector"],a:1,e:"An antistatic wrist strap grounds you to the chassis so static discharges harmlessly. ESD can destroy components with less charge than you can feel."},
@@ -1102,6 +1102,28 @@ const QUESTIONS = [
 {d:"ops",q:"A customer is angry and venting about a recurring problem. What is the BEST response?",o:["Interrupt to explain the fix quickly","Listen fully without interrupting, then restate the issue","Escalate immediately to a manager","Tell them it's user error"],a:1,e:"Professionalism: actively listen, don't interrupt, restate to confirm understanding, and set realistic expectations."},
 {d:"ops",q:"Which of these is considered PII that must be handled under privacy regulations?",o:["A device's MAC address list","A customer's date of birth and SSN","The office Wi-Fi SSID","A printer's page count"],a:1,e:"Personally Identifiable Information (DOB, SSN, address, etc.) is regulated — follow retention and disclosure policies, and report mishandling."},
 {d:"ops",q:"Which document defines what users are allowed to do on company systems and networks?",o:["SLA","AUP","SOP","MOU"],a:1,e:"The Acceptable Use Policy (AUP) sets rules for using company IT. SLA = service levels; SOP = how to perform a procedure."},
+/* ---- Mixed-format additions (V15 exam-like) ---- */
+/* Multiple-response — Select TWO/THREE, strict all-or-nothing */
+{d:"net",t:"multi",q:"You are hardening a SOHO router. Which TWO settings provide the strongest wireless security? — Select TWO",o:["WPA3-Personal with 14-char passphrase","WEP 128-bit","Disable WPA encryption for speed","Enable WPA3 / disable WPS","MAC filtering alone"],a:[0,3],pick:2,e:"WPA3-Personal + strong passphrase is top; disabling WPS removes a brute-force vector. WEP is broken; MAC filtering is spoofable alone."},
+{d:"net",t:"multi",q:"A user must reach a website by name, but nslookup fails. Which TWO ports must be open outbound for DNS? — Select TWO",o:["TCP 53","UDP 53","TCP 80","UDP 67","TCP 443"],a:[0,1],pick:2,e:"DNS uses UDP 53 normally and TCP 53 for large/zone transfers. 80/443 are HTTP/S, 67 is DHCP server."},
+{d:"hw",t:"multi",q:"A CAD workstation needs max RAM and NVMe speed. Which TWO steps are required? — Select TWO",o:["Install SO-DIMM DDR4 in laptop slots","Populate all DIMM channels with matched DDR5","Use SATA II for boot drive","Install NVMe PCIe M.2 as OS drive","Enable RAID 0 on the NVMe alone for redundancy"],a:[1,3],pick:2,e:"Matched DIMMs maximize RAM bandwidth; NVMe PCIe M.2 is the fast OS drive. SO-DIMM is laptop, SATA II is slow, RAID 0 is not redundant."},
+{d:"os",t:"multi",q:"A Win11 24H2 machine fails Secure Boot. Which TWO requirements should you verify? — Select TWO",o:["TPM 2.0 enabled in UEFI","Partition style is MBR","Secure Boot enabled + UEFI mode","FAT32 on the OS volume","Measured boot disabled"],a:[0,2],pick:2,e:"Win11 needs TPM 2.0 + UEFI + Secure Boot + GPT. MBR and FAT32 are not the issue; measured boot is optional."},
+{d:"sec",t:"multi",q:"You are investigating a phishing email. Which TWO indicators are the strongest? — Select TWO",o:["Mismatched reply-to domain and SPF fail","AV icon is blue","Valid DKIM signature from claimed domain","Urgent language + link to punycode domain","Inbox has 2 unread"],a:[0,3],pick:2,e:"Mismatched envelope + SPF fail and punycode/urgent link are phishing tells. Valid DKIM argues legitimate; icon colour and unread count are noise."},
+{d:"swts",t:"multi",q:"PC shows 97% memory in Task Manager but low CPU/disk. Which TWO actions help before buying RAM? — Select TWO",o:["End high-memory processes and check startup apps","Add a second monitor","Run SFC to fix memory leak from corrupt files","Defrag the HDD","Disable page file entirely"],a:[0,2],pick:2,e:"Close bloat/startup and repair corrupt files leaking handles. Monitors/defrag/page-file tweaks don't fix a 97% RAM bottleneck."},
+{d:"sec",t:"multi",q:"Which TWO controls enforce Zero Trust least-privilege for a new hire? — Select TWO",o:["Local admin for all devices","Conditional access + MFA","Just-in-time admin elevation","Share one service account","Allow unsigned macros by default"],a:[1,2],pick:2,e:"Zero Trust = conditional access/MFA + JIT elevation, least privilege. Local admin everywhere and shared accounts violate it."},
+{d:"ops",t:"multi",q:"A change to production needs approval. Which TWO artifacts must the change request include? — Select TWO",o:["Rollback / backout plan","Updated network diagram + impact analysis","New SSID password","MAC address of the tech","EULA acceptance"],a:[0,1],pick:2,e:"Change management needs rollback plan + impact/diagram + maintenance window. SSID/MAC/EULA are not required artifacts."},
+{d:"net",t:"multi",q:"You trace a duplex mismatch. Which TWO symptoms point to it? — Select TWO",o:["Late collisions + degraded throughput","NSLOOKUP SERVFAIL","169.254.x.x APIPA","Port shows half on one end, full on the other"," steadily low ping"],a:[0,3],pick:2,e:"Duplex mismatch → late collisions and one side half/one side full. APIPA is DHCP fail; SERVFAIL is DNS."},
+{d:"os",t:"multi",q:"Linux server needs permissions 755 on a script. Which TWO commands achieve it? — Select TWO",o:["chmod 755 deploy.sh","chmod u+rwx,go+rx deploy.sh","chown 755 deploy.sh","grep 755 deploy.sh","ls -la to set bits"],a:[0,1],pick:2,e:"755 = rwxr-xr-x. Both octal 755 and symbolic u+rwx,go+rx set it. chown changes owner, grep searches, ls lists."},
+{d:"hwts",t:"multi",q:"A user’s laser prints ghost faint repeats. Which TWO components should you inspect? — Select TWO",o:["Fuser assembly","Photosensitive drum","Pickup rollers","Wi-Fi antenna","Ink cartridge"],a:[0,1],pick:2,e:"Ghosting is classic fuser/drum. Pickup rollers cause jams; ink is inkjet; antenna is wireless."},
+{d:"ops",t:"multi",q:"Which TWO are considered PII under privacy policy? — Select TWO",o:["Customer SSN","Customer DOB + home address","Office Wi-Fi SSID","Printer page count","Switch model number"],a:[0,1],pick:2,e:"PII = SSN, DOB, address, etc. SSID/page count/model are not person-identifiable."},
+/* Ordered drag — strict exact order */
+{d:"ops",t:"order",q:"Put CompTIA’s 6-step troubleshooting methodology in the correct order — drag to reorder. (CompTIA tests this as an ordered PBQ.)",items:["Test the theory to determine cause","Identify the problem","Document findings, actions, and outcomes","Verify full system functionality and implement preventive measures","Establish a theory of probable cause","Establish a plan of action to resolve the problem and implement the solution"],a:["Identify the problem","Establish a theory of probable cause","Test the theory to determine cause","Establish a plan of action to resolve the problem and implement the solution","Verify full system functionality and implement preventive measures","Document findings, actions, and outcomes"],e:"Identify → Theory → Test → Plan → Implement → Verify → Document. Tested as ordered drag; back up before implementing if the situation warrants."},
+{d:"hw",t:"order",q:"Put the laser printing process in correct order — drag to reorder.",items:["Fusing","Exposing","Charging","Cleaning","Developing","Transferring","Processing"],a:["Processing","Charging","Exposing","Developing","Transferring","Fusing","Cleaning"],e:"Processing → Charging → Exposing → Developing → Transferring → Fusing → Cleaning — a classic drag PBQ."},
+{d:"sec",t:"order",q:"Put CompTIA’s malware removal steps in the correct order — drag to reorder.",items:["Disable System Restore (Windows)","Educate the end user","Quarantine the system / identify the threat","Re-enable System Restore and create a restore point","Remediate in Safe Mode and schedule scans","Investigate and verify symptoms"],a:["Investigate and verify symptoms","Quarantine the system / identify the threat","Disable System Restore (Windows)","Remediate in Safe Mode and schedule scans","Re-enable System Restore and create a restore point","Educate the end user"],e:"Investigate → Quarantine → Disable SR → Remediate in Safe Mode → Re-enable SR → Educate last. Disabling SR before remediation stops reinfection."},
+{d:"net",t:"order",q:"You are building a SOHO network: put the setup steps in the best order — drag to reorder.",items:["Connect ISP modem to router WAN, then router LAN to switch","Change default admin password and update firmware","Configure SSID, WPA3, and passphrase","Enable DHCP with correct scope and test connectivity","Place and secure the router (physical)"],
+a:["Place and secure the router (physical)","Connect ISP modem to router WAN, then router LAN to switch","Change default admin password and update firmware","Configure SSID, WPA3, and passphrase","Enable DHCP with correct scope and test connectivity"],e:"Physical → cabling → harden admin/firmware → wireless security → services/testing. Order matters for hardening."},
+{d:"os",t:"order",q:"Windows boot repair — put the WinRE bootrec sequence in the order you’d try — drag to reorder.",items:["bootrec /rebuildbcd","bootrec /fixboot","bootrec /fixmbr"],a:["bootrec /fixmbr","bootrec /fixboot","bootrec /rebuildbcd"],e:"Classic fixmbr → fixboot → rebuildbcd sequence from WinRE."},
+{d:"swts",t:"order",q:"A PC is slow: put the triage order for a *malware-suspected* slowdown in correct order — drag to reorder.",items:["Run full AV/AM scans in Safe Mode","Interview the user about recent changes/installs","Check Task Manager for resource bottleneck","Isolate the box from the network and back up critical data"],a:["Interview the user about recent changes/installs","Isolate the box from the network and back up critical data","Check Task Manager for resource bottleneck","Run full AV/AM scans in Safe Mode"],e:"Interview → isolate/back up → diagnose bottleneck → scan. Don’t scan before isolating/backing up."},
 ];
 
 /* ================= STATE ================= */
@@ -1426,6 +1448,33 @@ async function startExam(core){
     items.push(...extra);
   }
   if(items.length > n) items=shuffle(items).slice(0,n);
+  // ensure format mix: guarantee at least several multi/order questions (if they exist) appear — strict exam has ~15-20% non-single
+  {
+    const allForCore=pool(ids);
+    const multis=allForCore.filter(q=>q.t==="multi" && (!qstat(q)||!qstat(q).retired));
+    const orders=allForCore.filter(q=>q.t==="order" && (!qstat(q)||!qstat(q).retired));
+    const hasMulti=new Set(items.filter(q=>q.t==="multi").map(q=>q.i));
+    const hasOrder=new Set(items.filter(q=>q.t==="order").map(q=>q.i));
+    const needMulti=multis.filter(q=>!hasMulti.has(q.i));
+    const needOrder=orders.filter(q=>!hasOrder.has(q.i));
+    // inject up to all available multis/orders by swapping singles, keep total n
+    const toInject=[...needMulti, ...needOrder];
+    if(toInject.length){
+      // prefer to replace singles first
+      let singlesIdx=[];
+      items.forEach((q,i)=>{ if((q.t||"single")==="single") singlesIdx.push(i); });
+      shuffle(singlesIdx);
+      let replacePos=0;
+      for(const q of toInject){
+        if(items.length >= n && replacePos >= singlesIdx.length) break;
+        if(items.length < n){
+          items.push(q);
+        } else if(replacePos < singlesIdx.length){
+          items[singlesIdx[replacePos++]] = q;
+        }
+      }
+    }
+  }
   // last resort: if bank truly smaller than 90, use whatever we have
   if(items.length < n && items.length < 50){
     alert("Exam bank for "+cfg.label+" only has "+items.length+" questions. Add an AI key in Settings to auto-generate a full "+n+"-question exam.");
@@ -1442,7 +1491,24 @@ async function startExam(core){
   tab="quiz"; persistSession(); render();
   startExamTimer();
 }
-function prep(items){ return items.map(it=>({...it, perm:S.shuffleOpts?shuffle([0,1,2,3]):[0,1,2,3]})); }
+function prep(items){
+  return items.map(it=>{
+    const t=it.t||"single";
+    if(t==="order"){
+      const sh=shuffle(it.items.slice());
+      return {...it, t:"order", shuffled:sh, a:it.a.slice(), items:it.items.slice(), perm:null};
+    }
+    if(t==="multi"){
+      const n=it.o.length;
+      const perm=S.shuffleOpts?shuffle([...Array(n).keys()]):[...Array(n).keys()];
+      // remap correct indices through perm: perm is display order of old indices
+      // we keep a as original indices; answer handling compares original indices
+      return {...it, t:"multi", perm:perm, a:it.a.slice(), pick:it.pick||it.a.length };
+    }
+    // single (default)
+    return {...it, t:"single", perm:S.shuffleOpts?shuffle([0,1,2,3]):[0,1,2,3]};
+  });
+}
 /* ---- exam timer: ticks even when tab is hidden (real exam) ---- */
 function remainingSeconds(){
   if(!quiz||!quiz.exam) return 0;
@@ -1477,7 +1543,29 @@ function jumpToQ(i){
   quiz.idx=i; quiz.answered=quiz.answers[i]; persistSession(); render();
   window.scrollTo(0,0);
 }
-function examProgress(){ if(!quiz||!quiz.exam) return {ans:0,flag:0}; let ans=0; quiz.answers.forEach(v=>{if(v!==null)ans++;}); return {ans, flag:quiz.flagged.size, total:quiz.items.length}; }
+function isExamAnswered(q, v){
+  const t=q.t||"single";
+  if(t==="multi"){ return Array.isArray(v) && v.length===(q.pick||q.a.length); }
+  if(t==="order"){ return Array.isArray(v) && v.length===q.items.length; }
+  return v!==null && v!==undefined;
+}
+function examProgress(){ if(!quiz||!quiz.exam) return {ans:0,flag:0,total:0}; let ans=0; quiz.answers.forEach((v,i)=>{ if(isExamAnswered(quiz.items[i],v)) ans++; }); return {ans, flag:quiz.flagged.size, total:quiz.items.length}; }
+function isCorrect(q, ans){
+  const t=q.t||"single";
+  if(ans===null||ans===undefined) return false;
+  if(t==="multi"){
+    if(!Array.isArray(ans)||!Array.isArray(q.a)) return false;
+    if(ans.length!==q.a.length) return false;
+    const a=ans.slice().sort((x,y)=>x-y), b=q.a.slice().sort((x,y)=>x-y);
+    return a.every((v,i)=>v===b[i]);
+  }
+  if(t==="order"){
+    if(!Array.isArray(ans)) return false;
+    if(ans.length!==q.a.length) return false;
+    return ans.every((v,i)=>v===q.a[i]);
+  }
+  return ans===q.a;
+}
 function canSubmitExam(){ return !!(quiz&&quiz.exam&&!quiz.done); }
 function requestSubmitExam(){
   if(!canSubmitExam()) return;
@@ -1491,12 +1579,12 @@ function requestSubmitExam(){
 function finishExam(timeUp){
   if(!quiz||!quiz.exam||quiz.done) return;
   stopExamTimer();
-  // score
+  // score — strict per CompTIA (multi: exact set, order: exact sequence)
   let right=0;
   const results=[];
   quiz.items.forEach((q,i)=>{
     const ans=quiz.answers[i];
-    const ok=ans!==null && ans===q.a;
+    const ok=isCorrect(q, ans);
     if(ok) right++;
     results.push({q, ans, ok});
   });
@@ -1604,7 +1692,7 @@ function sessionCard(){
     const cfg=s.examCfg || (s.core===2?EXAM.core2:EXAM.core1);
     const elapsed=s.startedAt?Math.floor((Date.now()-s.startedAt)/1000):0;
     const rem=Math.max(0, cfg.secs - elapsed);
-    const ans=(s.answers||[]).filter(v=>v!==null).length;
+    let ans=0; try{ (s.answers||[]).forEach((v,i)=>{ const q=s.items[i]; if(q && (q.t==="multi" ? (Array.isArray(v)&&v.length===(q.pick||q.a.length)) : q.t==="order" ? (Array.isArray(v)&&v.length) : v!==null && v!==undefined)) ans++; }); }catch(e){ ans=(s.answers||[]).filter(v=>v!==null).length; }
     const flag=(s.flagged||[]).length;
     const ago=Math.round((Date.now()-(s.at||Date.now()))/60000);
     return `<div class="card"><h2>${ic("target")}Exam in progress — ${esc(cfg.label)}</h2>
@@ -1646,9 +1734,98 @@ function retireQuestion(){
   else if(quiz.idx>=quiz.items.length){ quiz.idx=quiz.items.length-1; }
   quiz.answered=null; save(); persistSession(); render();
 }
+function toggleMulti(k){
+  if(!quiz) return;
+  const q=quiz.items[quiz.idx], pick=q.pick||q.a.length;
+  // exam mode: answers array
+  if(quiz.exam && !quiz.done){
+    let cur=quiz.answers[quiz.idx];
+    if(!Array.isArray(cur)) cur=[];
+    if(cur.includes(k)) cur=cur.filter(v=>v!==k);
+    else if(cur.length<pick) cur=[...cur,k];
+    else return; // at pick limit — deselect one first
+    quiz.answers[quiz.idx]=cur.length?cur:[];
+    // consider answered only when pick reached; keep empty array vs null for UI
+    if(cur.length===0) quiz.answers[quiz.idx]=[];
+    quiz.answered=quiz.answers[quiz.idx];
+    persistSession(); render(); return;
+  }
+  // practice mode
+  if(quiz.answered!==null) return;
+  let cur=quiz._multiSel||[];
+  if(cur.includes(k)) cur=cur.filter(v=>v!==k);
+  else if(cur.length<pick) cur=[...cur,k];
+  else return;
+  quiz._multiSel=cur; render();
+}
+function submitMulti(){
+  if(!quiz||quiz.exam) return;
+  const q=quiz.items[quiz.idx], pick=q.pick||q.a.length;
+  const sel=quiz._multiSel||[];
+  if(sel.length!==pick) return;
+  answerMulti(sel);
+}
+function answerMulti(arr){
+  if(quiz.answered!==null) return;
+  const q=quiz.items[quiz.idx], st=qs(q);
+  const ok=isCorrect(q, arr);
+  const wasMastered=st.mastered;
+  quiz.answered=arr.slice(); st.seen++; ok?(st.right++,quiz.right++):st.wrong++;
+  if(ok){ st.streak=(st.streak||0)+1; if(st.mastered){ st.reviews=(st.reviews||0)+1; st.masteredAt=Date.now(); } else if(st.streak>=MASTER_STREAK){ st.mastered=true; st.masteredAt=Date.now(); st.reviews=0; } } else { st.streak=0; if(st.mastered) st.mastered=false; }
+  quiz.becameMastered = ok && !wasMastered && st.mastered;
+  if(quiz.becameMastered) quiz.justMastered=(quiz.justMastered||0)+1;
+  st.lastWrong=!ok; quiz.results.push({q,ok, ans:arr.slice()});
+  const t=todayStr(); if(S.daily.date!==t) S.daily={date:t,count:0,hit:false}; S.daily.count++;
+  if(!S.daily.hit && S.daily.count>=S.dailyGoal){ S.daily.hit=true; const y=new Date(Date.now()-864e5).toISOString().slice(0,10); S.streak.count = S.streak.last===y ? S.streak.count+1 : 1; S.streak.last=t; }
+  persistSession(); render();
+}
+function getOrderDisplay(q){
+  if(quiz && quiz.exam){
+    const v=quiz.answers[quiz.idx];
+    if(Array.isArray(v) && v.length) return v;
+    return q.shuffled||q.items||[];
+  }
+  if(quiz && quiz._orderCur) return quiz._orderCur;
+  return q.shuffled||q.items||[];
+}
+function moveOrder(from,to){
+  const q=quiz.items[quiz.idx];
+  let cur=getOrderDisplay(q).slice();
+  const [m]=cur.splice(from,1);
+  cur.splice(to,0,m);
+  if(quiz.exam && !quiz.done){
+    quiz.answers[quiz.idx]=cur; quiz.answered=cur; persistSession(); render();
+  } else {
+    quiz._orderCur=cur; render();
+  }
+}
+function submitOrder(){
+  if(!quiz||quiz.exam) return;
+  const q=quiz.items[quiz.idx];
+  const cur=getOrderDisplay(q);
+  if(!cur||!cur.length) return;
+  answerOrder(cur);
+}
+function answerOrder(arr){
+  if(quiz.answered!==null) return;
+  const q=quiz.items[quiz.idx], st=qs(q);
+  const ok=isCorrect(q, arr);
+  const wasMastered=st.mastered;
+  quiz.answered=arr.slice(); st.seen++; ok?(st.right++,quiz.right++):st.wrong++;
+  if(ok){ st.streak=(st.streak||0)+1; if(st.mastered){ st.reviews=(st.reviews||0)+1; st.masteredAt=Date.now(); } else if(st.streak>=MASTER_STREAK){ st.mastered=true; st.masteredAt=Date.now(); st.reviews=0; } } else { st.streak=0; if(st.mastered) st.mastered=false; }
+  quiz.becameMastered = ok && !wasMastered && st.mastered;
+  if(quiz.becameMastered) quiz.justMastered=(quiz.justMastered||0)+1;
+  st.lastWrong=!ok; quiz.results.push({q,ok, ans:arr.slice()});
+  const t=todayStr(); if(S.daily.date!==t) S.daily={date:t,count:0,hit:false}; S.daily.count++;
+  if(!S.daily.hit && S.daily.count>=S.dailyGoal){ S.daily.hit=true; const y=new Date(Date.now()-864e5).toISOString().slice(0,10); S.streak.count = S.streak.last===y ? S.streak.count+1 : 1; S.streak.last=t; }
+  persistSession(); render();
+}
 function answer(k){
-  // exam mode: allow changing answer, no immediate mastery side-effects
+  // exam mode: dispatch by type
   if(quiz && quiz.exam && !quiz.done){
+    const q=quiz.items[quiz.idx], t=q.t||"single";
+    if(t==="multi") return toggleMulti(k);
+    if(t==="order") return; // order uses moveOrder
     quiz.answers[quiz.idx]=k;
     quiz.answered=k;
     persistSession(); render();
@@ -1686,7 +1863,7 @@ function nextQ(){
     quiz.idx++; quiz.answered=quiz.answers[quiz.idx]; persistSession(); render(); return;
   }
   if(quiz.idx+1>=quiz.items.length){ quiz.done=true; S.sessions++; }
-  else { quiz.idx++; quiz.answered=null; }
+  else { quiz.idx++; quiz.answered=null; quiz._multiSel=null; quiz._orderCur=null; }
   persistSession(); render();
 }
 function prevQ(){
@@ -1757,7 +1934,7 @@ function examActiveView(){
   const cfg=quiz.examCfg;
   // palette: 1..n grid
   const palette=quiz.items.map((_,i)=>{
-    const st = quiz.answers[i]!==null ? "ans" : "un";
+    const st = isExamAnswered(quiz.items[i], quiz.answers[i]) ? "ans" : "un";
     const fl = quiz.flagged.has(i) ? " flagged":"";
     const cur = i===quiz.idx ? " cur":"";
     const label=i+1;
@@ -1769,11 +1946,29 @@ function examActiveView(){
       <div class="exam-timer-wrap"><span id="exam-timer" class="exam-timer${rem<=300?" danger":rem<=900?" warn":""}">${fmtTime(rem)}</span><span class="muted" style="font-size:.65rem;letter-spacing:.08em">REMAINING</span></div>
     </div>
     <div class="exam-progress"><div class="bar" style="height:8px"><div style="width:${Math.round(100*p.ans/total)}%;--w:${Math.round(100*p.ans/total)}%"></div></div><div class="muted" style="font-size:.72rem;margin-top:6px">${p.ans}/${total} answered · ${p.flag} flagged · ${total-p.ans} remaining</div></div>
-    <div class="question" style="margin-top:12px">${esc(q.q)}</div>
-    ${(q.perm||[0,1,2,3]).map((oi,pos)=>{
-      const isSel=oi===sel;
-      return `<button class="opt${isSel?" sel":""}" onclick="answer(${oi})">${String.fromCharCode(65+pos)}. ${esc(q.o[oi])}</button>`;
-    }).join("")}
+    <div class="question" style="margin-top:12px">${esc(q.q)}${(q.t==="multi")?` <span class="tag" style="background:var(--card2)">SELECT ${q.pick||q.a.length}</span>`: (q.t==="order")?` <span class="tag">DRAG TO ORDER</span>`:""}</div>
+    ${(()=>{
+      const t=q.t||"single";
+      if(t==="multi"){
+        const cur=Array.isArray(sel)?sel:[];
+        const cnt=cur.length, need=q.pick||q.a.length;
+        return (q.perm||[...Array(q.o.length).keys()]).map(oi=>{
+          const pos=(q.perm||[...Array(q.o.length).keys()]).indexOf(oi);
+          const isSel=cur.includes(oi);
+          return `<button class="opt${isSel?" sel":""}" onclick="toggleMulti(${oi})" style="display:flex;gap:10px;align-items:center"><span style="width:16px;height:16px;border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;background:${isSel?"var(--ink)":"transparent"};color:${isSel?"var(--bg)":"transparent"}">${isSel?ic("check"):""}</span>${String.fromCharCode(65+pos)}. ${esc(q.o[oi])}</button>`;
+        }).join("") + `<div class="muted" style="margin-top:8px;font-size:.72rem">${cnt}/${need} selected — ${cnt===need?"ready":"select "+(need-cnt)+" more"} · ${cnt>0?`<a href="#" onclick="quiz.answers[quiz.idx]=[];quiz.answered=[];persistSession();render();return false" style="color:var(--muted)">Clear</a>`:""}</div>`;
+      }
+      if(t==="order"){
+        const cur=getOrderDisplay(q);
+        return `<div class="muted" style="margin:8px 0 6px;font-size:.72rem">Tap ↑/↓ to reorder — top is first step. Exact order required.</div>
+          ${cur.map((txt,i)=>`<div class="pbq-slot filled" style="display:flex;justify-content:space-between;align-items:center"><span><span class="n">${i+1}.</span> ${esc(txt)}</span><span style="display:flex;gap:4px"><button class="btn small secondary" style="padding:4px 8px" ${i===0?"disabled":""} onclick="moveOrder(${i},${i-1})">↑</button><button class="btn small secondary" style="padding:4px 8px" ${i===cur.length-1?"disabled":""} onclick="moveOrder(${i},${i+1})">↓</button></span></div>`).join("")}`;
+      }
+      const isSingleSel=sel;
+      return (q.perm||[0,1,2,3]).map((oi,pos)=>{
+        const isSel=oi===isSingleSel;
+        return `<button class="opt${isSel?" sel":""}" onclick="answer(${oi})">${String.fromCharCode(65+pos)}. ${esc(q.o[oi])}</button>`;
+      }).join("");
+    })()}
     <div class="row" style="margin-top:12px">
       <button class="btn secondary small" onclick="prevQ()" ${quiz.idx===0?"disabled":""}>← Previous</button>
       <button class="btn secondary small" onclick="toggleFlag()" style="${flagged?"border-color:var(--warn);color:var(--warn)":""}">${flagged?`★ Unflag`:`☆ Flag for review`}</button>
@@ -1814,9 +2009,23 @@ function examResultView(){
       return `<div class="stat-line"><span>${dom.name} <span class="muted" style="font-size:.72rem">· ${dom.weight}% of exam</span></span><span style="color:${accColor(v.r/v.t)}">${v.r}/${v.t} · ${dpct}%</span></div>`;}).join("")}
   </div>
   ${quiz.results.some(r=>!r.ok)?`<div class="card"><h3>Missed &amp; unanswered</h3>
-    ${quiz.results.filter(r=>!r.ok).map(r=>`<div class="explain" style="margin-bottom:10px"><b>${esc(r.q.q)}</b><br>
-    Your answer: ${r.ans===null?'<i class="danger">Unanswered</i>':esc(String.fromCharCode(65+r.ans)+". "+r.q.o[r.ans])}<br>
-    Correct: ${String.fromCharCode(65+r.q.a)}. ${esc(r.q.o[r.q.a])}<br>${esc(r.q.e)}</div>`).join("")}</div>`:""}
+    ${quiz.results.filter(r=>!r.ok).map(r=>{
+      const t=r.q.t||"single";
+      let yours="", corr="";
+      if(t==="multi"){
+        const fmt=(arr)=> arr && arr.length ? arr.map(i=> String.fromCharCode(65+((r.q.perm||[]).indexOf(i)>=0?(r.q.perm||[]).indexOf(i):i)) + ". " + r.q.o[i]).join(" + ") : '<i class="danger">Unanswered</i>';
+        yours = r.ans && r.ans.length ? esc(fmt(r.ans)) : '<i class="danger">Unanswered</i>';
+        corr = esc(r.q.a.map(i=> String.fromCharCode(65+((r.q.perm||[]).indexOf(i)>=0?(r.q.perm||[]).indexOf(i):i)) + ". " + r.q.o[i]).join(" + "));
+      } else if(t==="order"){
+        const fmtA=(arr)=> arr? arr.join(" → ") : "—";
+        yours = r.ans && r.ans.length ? esc(fmtA(r.ans)) : '<i class="danger">Unanswered</i>';
+        corr = esc(fmtA(r.q.a));
+      } else {
+        yours = r.ans===null||r.ans===undefined ? '<i class="danger">Unanswered</i>' : esc(String.fromCharCode(65+r.ans)+". "+r.q.o[r.ans]);
+        corr = String.fromCharCode(65+r.q.a)+". "+esc(r.q.o[r.q.a]);
+      }
+      return `<div class="explain" style="margin-bottom:10px"><b>${esc(r.q.q)}</b><br>Your answer: ${yours}<br>Correct: ${corr}<br>${esc(r.q.e)}</div>`;
+    }).join("")}</div>`:""}
   <div class="row"><button class="btn" onclick="startExam(${quiz.core})">Retake ${esc(cfg.label)} (fresh 90)</button>
   <button class="btn secondary" onclick="go('quiz')">Practice</button>
   <button class="btn secondary" onclick="go('dash')">Dashboard</button></div>`;
@@ -1842,15 +2051,80 @@ function quizView(){
         return `<div class="stat-line"><span>${dom.name}</span><span style="color:${accColor(v.r/v.t)}">${v.r}/${v.t}</span></div>`;}).join("")}
     </div>
     ${S.feedback==="end"&&quiz.results.some(r=>!r.ok)?`<div class="card"><h3>Missed questions</h3>
-      ${quiz.results.filter(r=>!r.ok).map(r=>`<div class="explain" style="margin-bottom:10px"><b>${esc(r.q.q)}</b><br>
-      Correct: ${String.fromCharCode(65+r.q.a)}. ${esc(r.q.o[r.q.a])}<br>${esc(r.q.e)}</div>`).join("")}</div>`:""}
+      ${quiz.results.filter(r=>!r.ok).map(r=>{
+        const t=r.q.t||"single";
+        let corr="";
+        if(t==="multi") corr = r.q.a.map(i=> String.fromCharCode(65+((r.q.perm||[]).indexOf(i)>=0?(r.q.perm||[]).indexOf(i):i))+". "+esc(r.q.o[i])).join(" + ");
+        else if(t==="order") corr = esc(r.q.a.join(" → "));
+        else corr = String.fromCharCode(65+r.q.a)+". "+esc(r.q.o[r.q.a]);
+        let yours="";
+        if(t==="multi") yours = r.ans && r.ans.length ? esc(r.ans.map(i=> String.fromCharCode(65+((r.q.perm||[]).indexOf(i)>=0?(r.q.perm||[]).indexOf(i):i))+". "+r.q.o[i]).join(" + ")) : '<i class="danger">Unanswered</i>';
+        else if(t==="order") yours = r.ans && r.ans.length ? esc(r.ans.join(" → ")) : '<i class="danger">Unanswered</i>';
+        else yours = r.ans===null||r.ans===undefined ? '<i class="danger">Unanswered</i>' : esc(String.fromCharCode(65+r.ans)+". "+r.q.o[r.ans]);
+        if(t==="single") return `<div class="explain" style="margin-bottom:10px"><b>${esc(r.q.q)}</b><br>Correct: ${corr}<br>${esc(r.q.e)}</div>`;
+        return `<div class="explain" style="margin-bottom:10px"><b>${esc(r.q.q)}</b><br>Your: ${yours}<br>Correct: ${corr}<br>${esc(r.q.e)}</div>`;
+      }).join("")}</div>`:""}
     <div class="row"><button class="btn" onclick="go('quiz')">Practice again</button>
     <button class="btn secondary" onclick="go('dash')">Dashboard</button></div>`;
   }
   const q=quiz.items[quiz.idx], dom=DOMAINS.find(d=>d.id===q.d), a=quiz.answered;
+  const t=q.t||"single";
   const status=masteryStatus(q), st=qstat(q), strk=st?(st.streak||0):0;
   const mLabel = status==="due" ? "REVIEW" : status==="mastered" ? "MASTERED"
     : status==="new" ? "NEW" : "LEARNING "+"◆".repeat(strk)+"◇".repeat(Math.max(0,MASTER_STREAK-strk));
+  // multi / order practice rendering
+  if(t==="multi"){
+    const cur=quiz._multiSel||[];
+    const need=q.pick||q.a.length;
+    const answered=a!==null;
+    const ok=answered? isCorrect(q,a) : false;
+    return `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+        <div class="qnum">Question ${quiz.idx+1} of ${quiz.items.length} · ${esc(dom.name)}<span class="tag ${dom.core===1?'c1':'c2'}">Core ${dom.core}</span><span class="tag">SELECT ${need}</span><span class="tag" title="Mastery: strict — all must be correct">${mLabel}</span></div>
+        <button class="ai-close" title="End quiz" onclick="endQuiz()">✕</button>
+      </div>
+      <div class="question">${esc(q.q)}</div>
+      ${(q.perm||[...Array(q.o.length).keys()]).map(oi=>{
+        const pos=(q.perm||[...Array(q.o.length).keys()]).indexOf(oi);
+        const isSel=answered? (Array.isArray(a)?a.includes(oi):false) : cur.includes(oi);
+        let cls="opt";
+        if(answered){
+          if(S.feedback==="end"){ if(isSel) cls+=" sel"; }
+          else { if(q.a.includes(oi)) cls+=" correct"; else if(isSel) cls+=" wrong"; }
+        } else if(isSel) cls+=" sel";
+        return `<button class="${cls}" ${answered?"disabled":""} onclick="toggleMulti(${oi})" style="display:flex;gap:10px;align-items:center"><span style="width:16px;height:16px;border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;background:${isSel?"var(--ink)":"transparent"};color:${isSel?"var(--bg)":"transparent"}">${isSel?ic("check"):""}</span>${String.fromCharCode(65+pos)}. ${esc(q.o[oi])}</button>`;
+      }).join("")}
+      ${!answered?`<div class="muted" style="margin-top:8px;font-size:.72rem">${cur.length}/${need} selected ${cur.length===need?`<button class="btn small" style="margin-left:8px" onclick="submitMulti()">Check answer</button>`:"" } ${cur.length?`<a href="#" onclick="quiz._multiSel=[];render();return false" style="margin-left:8px;color:var(--muted)">Clear</a>`:""}</div>`:""}
+      ${answered?( S.feedback==="end"
+        ? `<div class="muted" style="margin:6px 0 12px">Answer recorded — results at the end, like the real exam.</div><button class="btn" onclick="nextQ()">${quiz.idx+1>=quiz.items.length?"Finish":"Next question"}</button>`
+        : `<div class="explain">${ok?OKI+" Correct. ":BADI+" Not quite. "}Correct: ${q.a.map(i=>String.fromCharCode(65+((q.perm||[]).indexOf(i)>=0?(q.perm||[]).indexOf(i):i))+". "+esc(q.o[i])).join(" + ")}<br>${esc(q.e)}</div>
+           ${quiz.becameMastered?`<div class="explain" style="border-left-color:var(--ink);margin-top:-4px"><b>${ic("check")} MASTERED</b> — strict: all ${need} had to be right.</div>`:""}
+           <div class="row"><button class="btn" onclick="nextQ()">${quiz.idx+1>=quiz.items.length?"Finish":"Next question"}</button><button class="btn secondary" onclick="askAboutQ()">${ic("sparkles")} Ask AI about this</button></div>`):""}
+    </div>`;
+  }
+  if(t==="order"){
+    const cur=getOrderDisplay(q);
+    const answered=a!==null;
+    const ok=answered? isCorrect(q,a) : false;
+    return `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+        <div class="qnum">Question ${quiz.idx+1} of ${quiz.items.length} · ${esc(dom.name)}<span class="tag ${dom.core===1?'c1':'c2'}">Core ${dom.core}</span><span class="tag">ORDER</span><span class="tag">${mLabel}</span></div>
+        <button class="ai-close" title="End quiz" onclick="endQuiz()">✕</button>
+      </div>
+      <div class="question">${esc(q.q)}</div>
+      <div class="muted" style="margin:8px 0;font-size:.72rem">${answered?"Your order vs correct — strict exact sequence.":"Tap ↑/↓ to reorder — top is first. Exact order required (strict). "}</div>
+      ${cur.map((txt,i)=>{
+        let cls="pbq-slot filled";
+        if(answered){ const isOk = a && a[i]===q.a[i] || (!a && false); cls += isOk?" ok":" bad"; }
+        return `<div class="${cls}" style="display:flex;justify-content:space-between;align-items:center"><span><span class="n">${i+1}.</span> ${esc(txt)}</span>${!answered?`<span style="display:flex;gap:4px"><button class="btn small secondary" style="padding:4px 8px" ${i===0?"disabled":""} onclick="moveOrder(${i},${i-1})">↑</button><button class="btn small secondary" style="padding:4px 8px" ${i===cur.length-1?"disabled":""} onclick="moveOrder(${i},${i+1})">↓</button></span>`:""}</div>`;
+      }).join("")}
+      ${!answered?`<button class="btn small" style="margin-top:8px" onclick="submitOrder()">Check order</button>`:""}
+      ${answered?( S.feedback==="end"
+        ? `<div class="muted" style="margin:6px 0 12px">Answer recorded — results at the end, like the real exam.</div><button class="btn" onclick="nextQ()">${quiz.idx+1>=quiz.items.length?"Finish":"Next question"}</button>`
+        : `<div class="explain">${ok?OKI+" Correct. ":BADI+" Not quite. "}Correct order: ${q.a.join(" → ")}<br>${esc(q.e)}</div>
+           <div class="row"><button class="btn" onclick="nextQ()">${quiz.idx+1>=quiz.items.length?"Finish":"Next question"}</button><button class="btn secondary" onclick="askAboutQ()">${ic("sparkles")} Ask AI about this</button></div>`):""}
+    </div>`;
+  }
   return `<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
       <div class="qnum">Question ${quiz.idx+1} of ${quiz.items.length} · ${esc(dom.name)}<span class="tag ${dom.core===1?'c1':'c2'}">Core ${dom.core}</span>${quiz.domainId===dom.id?`<span class="tag" style="background:rgba(255,184,77,.2);color:var(--warn)">DOMAIN TEST</span>`:""}${q.ai?`<span class="tag" style="background:rgba(167,139,250,.2);color:#a78bfa">AI</span>`:""}<span class="tag" title="Mastery: 3 correct in a row retires a question">${mLabel}</span></div>
