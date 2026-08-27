@@ -960,6 +960,15 @@ const DOMAINS = [
   {id:"ops",     core:2, name:"Operational Procedures",            weight:17},
 ];
 
+/* ================= EXAM SIMULATION CONFIG ================= */
+const EXAM = {
+  core1:{n:90, secs:90*60, pass:675, label:"Core 1 · 220-1201"},
+  core2:{n:90, secs:90*60, pass:700, label:"Core 2 · 220-1202"}
+};
+function scaledScore(pct){ return Math.min(900, Math.max(100, Math.round(100 + pct*800))); }
+function fmtTime(s){ s=Math.max(0,Math.floor(s)); const m=Math.floor(s/60), sec=s%60; const h=Math.floor(m/60); const mm=h?String(m%60).padStart(2,"0"):String(m); const hh=h?String(h)+":":""; return hh+mm.padStart(h?2:1,"0")+":"+String(sec).padStart(2,"0"); }
+function examPassFor(core){ return core===2?EXAM.core2.pass:EXAM.core1.pass; }
+
 /* ================= QUESTION BANK =================
    q: question, o: options, a: index of correct, e: explanation */
 const QUESTIONS = [
@@ -1316,6 +1325,7 @@ function pool(ids){ return QUESTIONS.map((q,i)=>({...q,i})).filter(q=>ids.includ
 
 async function startQuiz(mode){
   if(AIBUSY) return;
+  if(mode==="core1"||mode==="core2"){ return startExam(mode==="core2"?2:1); }
   let items=[];
   if(mode==="quick"){
     const ids=S.focus.length?S.focus:DOMAINS.map(d=>d.id);
@@ -1324,24 +1334,169 @@ async function startQuiz(mode){
     if(!items.length){ items=selectQuestions(ids,S.quizLen,{includeMastered:true}); }  // all mastered → maintenance
   }
   else if(mode==="missed"){ items=shuffle(missedList()); }
-  else if(mode==="core1"||mode==="core2"){
-    const core=mode==="core2"?2:1, n=20;
-    const doms=DOMAINS.filter(d=>d.core===core);
-    const tw=doms.reduce((s,d)=>s+d.weight,0);
-    doms.forEach(d=>{ const take=Math.max(1,Math.round(n*d.weight/tw));
-      items.push(...shuffle(pool([d.id])).slice(0,take)); });
-    items=shuffle(items);
-  }
   if(!items.length){ alert("No questions available for that mode yet."); return; }
   quiz={items:prep(items), idx:0, right:0, answered:null, results:[]};
   tab="quiz"; persistSession(); render();
 }
+/* ---- full exam simulation: 90 Q, 90 min, scaled 100-900, deferred stats ---- */
+async function startExam(core){
+  if(AIBUSY) return;
+  const cfg=core===2?EXAM.core2:EXAM.core1;
+  const n=cfg.n;
+  const doms=DOMAINS.filter(d=>d.core===core);
+  const ids=doms.map(d=>d.id);
+  // only top-up if we are short of a full exam
+  const available=pool(ids).filter(q=>!qstat(q) || !qstat(q).retired).length;
+  if(available < n && S.autoGen && aiReady()){
+    // block start with banner until top-up finishes (tries to fill the gap)
+    AIBUSY=true; GENBANNER="Building full exam — topping up "+cfg.label+"…"; render();
+    try{
+      // top up the sparsest domains first, in batches of 5
+      let tries=0;
+      while(pool(ids).filter(q=>!qstat(q)||!qstat(q).retired).length < n && tries<4){
+        const sparse=doms.map(d=>({id:d.id, c:pool([d.id]).filter(q=>!qstat(q)||!qstat(q).retired).length})).sort((a,b)=>a.c-b.c)[0];
+        if(!sparse) break;
+        await generateForDomain(sparse.id, 5);
+        tries++;
+      }
+    }catch(e){ /* fall through with whatever we have */ }
+    AIBUSY=false; GENBANNER=""; render();
+  }
+  // build weighted 90-Q set, including mastered (so repeats are possible) but never retired
+  const tw=doms.reduce((s,d)=>s+d.weight,0);
+  let items=[];
+  doms.forEach(d=>{
+    const take=Math.max(1, Math.round(n*d.weight/tw));
+    const avail=shuffle(pool([d.id]).filter(q=>{ const st=qstat(q); return !st||!st.retired; }));
+    items.push(...avail.slice(0, take));
+  });
+  // fix rounding drift and shortfalls by topping from the global pool
+  if(items.length < n){
+    const used=new Set(items.map(q=>q.i));
+    const extra=shuffle(pool(ids).filter(q=>!used.has(q.i) && (!qstat(q)||!qstat(q).retired))).slice(0, n-items.length);
+    items.push(...extra);
+  }
+  if(items.length > n) items=shuffle(items).slice(0,n);
+  // last resort: if bank truly smaller than 90, use whatever we have
+  if(items.length < n && items.length < 50){
+    alert("Exam bank for "+cfg.label+" only has "+items.length+" questions. Add an AI key in Settings to auto-generate a full "+n+"-question exam.");
+  }
+  if(!items.length){ alert("No questions available for that exam yet."); return; }
+  items=shuffle(items);
+  const now=Date.now();
+  quiz={
+    items:prep(items), idx:0, right:0, answered:null, results:[],
+    exam:true, core:core, examN: items.length, examCfg:cfg,
+    remaining: cfg.secs, startedAt: now, answers: Array(items.length).fill(null),
+    flagged: new Set(), reviewMode:false, done:false
+  };
+  tab="quiz"; persistSession(); render();
+  startExamTimer();
+}
 function prep(items){ return items.map(it=>({...it, perm:S.shuffleOpts?shuffle([0,1,2,3]):[0,1,2,3]})); }
+/* ---- exam timer: ticks even when tab is hidden (real exam) ---- */
+function remainingSeconds(){
+  if(!quiz||!quiz.exam) return 0;
+  if(quiz.done) return quiz.remaining||0;
+  const elapsed=Math.floor((Date.now()-quiz.startedAt)/1000);
+  return Math.max(0, (quiz.examCfg.secs - elapsed));
+}
+function startExamTimer(){
+  stopExamTimer();
+  if(!quiz||!quiz.exam||quiz.done) return;
+  // sync remaining immediately then tick every second
+  quiz.remaining = remainingSeconds();
+  const id=setInterval(()=>{
+    if(!quiz||!quiz.exam||quiz.done){ stopExamTimer(); return; }
+    const r=remainingSeconds();
+    quiz.remaining=r;
+    const el=document.getElementById("exam-timer");
+    if(el){ el.textContent=fmtTime(r); el.className="exam-timer"+(r<=300?" danger":r<=900?" warn":""); }
+    if(r<=0){ stopExamTimer(); finishExam(true); }
+  },1000);
+  quiz._timer=id;
+}
+function stopExamTimer(){ if(quiz&&quiz._timer){ clearInterval(quiz._timer); quiz._timer=null; } }
+function toggleFlag(){
+  if(!quiz||!quiz.exam) return;
+  if(quiz.flagged.has(quiz.idx)) quiz.flagged.delete(quiz.idx); else quiz.flagged.add(quiz.idx);
+  persistSession(); render();
+}
+function jumpToQ(i){
+  if(!quiz||!quiz.exam) return;
+  if(i<0||i>=quiz.items.length) return;
+  quiz.idx=i; quiz.answered=quiz.answers[i]; persistSession(); render();
+  window.scrollTo(0,0);
+}
+function examProgress(){ if(!quiz||!quiz.exam) return {ans:0,flag:0}; let ans=0; quiz.answers.forEach(v=>{if(v!==null)ans++;}); return {ans, flag:quiz.flagged.size, total:quiz.items.length}; }
+function canSubmitExam(){ return !!(quiz&&quiz.exam&&!quiz.done); }
+function requestSubmitExam(){
+  if(!canSubmitExam()) return;
+  const p=examProgress(); const un=p.total-p.ans;
+  let msg="Submit exam? You cannot change answers after submitting.";
+  if(un>0) msg="You have "+un+" unanswered question"+(un===1?"":"s")+" and "+p.flag+" flagged. "+msg;
+  else if(p.flag>0) msg="You have "+p.flag+" flagged question"+(p.flag===1?"":"s")+". "+msg;
+  if(!confirm(msg)) return;
+  finishExam(false);
+}
+function finishExam(timeUp){
+  if(!quiz||!quiz.exam||quiz.done) return;
+  stopExamTimer();
+  // score
+  let right=0;
+  const results=[];
+  quiz.items.forEach((q,i)=>{
+    const ans=quiz.answers[i];
+    const ok=ans!==null && ans===q.a;
+    if(ok) right++;
+    results.push({q, ans, ok});
+  });
+  quiz.right=right; quiz.results=results; quiz.done=true; quiz.timeUp=!!timeUp; quiz.submittedAt=Date.now();
+  // apply mastery/daily stats once, now (deferred)
+  const prevSessions=S.sessions;
+  S.sessions++;
+  results.forEach(r=>{
+    const st=qs(r.q); const wasMastered=st.mastered;
+    const k=r.ans; const ok=r.ok;
+    if(k===null){ st.lastWrong=true; st.streak=0; if(st.mastered) st.mastered=false; return; }
+    st.seen++; ok?(st.right++,0):st.wrong++;
+    if(ok){
+      st.streak=(st.streak||0)+1;
+      if(st.mastered){ st.reviews=(st.reviews||0)+1; st.masteredAt=Date.now(); }
+      else if(st.streak>=MASTER_STREAK){ st.mastered=true; st.masteredAt=Date.now(); st.reviews=0; }
+    } else { st.streak=0; if(st.mastered) st.mastered=false; }
+    st.lastWrong=!ok;
+    if(ok && !wasMastered && st.mastered) quiz.justMastered=(quiz.justMastered||0)+1;
+  });
+  // daily / streak (count answered questions)
+  const t=todayStr(); if(S.daily.date!==t) S.daily={date:t,count:0,hit:false};
+  S.daily.count+=results.filter(r=>r.ans!==null).length;
+  if(!S.daily.hit && S.daily.count>=S.dailyGoal){
+    S.daily.hit=true;
+    const y=new Date(Date.now()-864e5).toISOString().slice(0,10);
+    S.streak.count = S.streak.last===y ? S.streak.count+1 : 1;
+    S.streak.last=t;
+  }
+  if(timeUp) quiz.timedOut=true;
+  persistSession(); render();
+}
 /* ---- session persistence: an unfinished quiz survives tab switches and page reloads ---- */
 function persistSession(){
   if(quiz && !quiz.done){
-    S.session={items:quiz.items, idx:quiz.idx, right:quiz.right, answered:quiz.answered,
-      results:quiz.results.map(r=>({q:r.q,ok:r.ok})), at:Date.now()};
+    if(quiz.exam){
+      S.session={
+        items:quiz.items, idx:quiz.idx, right:quiz.right,
+        answers: quiz.answers?quiz.answers.slice():null,
+        answered: quiz.answers?quiz.answers[quiz.idx]:quiz.answered,
+        flagged: quiz.flagged?Array.from(quiz.flagged):[],
+        exam:true, core:quiz.core, examN:quiz.examN, examCfg:quiz.examCfg,
+        startedAt:quiz.startedAt, remaining:remainingSeconds(),
+        at:Date.now()
+      };
+    } else {
+      S.session={items:quiz.items, idx:quiz.idx, right:quiz.right, answered:quiz.answered,
+        results:(quiz.results||[]).map(r=>({q:r.q,ok:r.ok})), at:Date.now()};
+    }
   } else S.session=null;
   save();
 }
@@ -1349,16 +1504,68 @@ function hasSession(){ return !!(S.session && S.session.items && S.session.items
 function resumeSession(){
   if(!hasSession()) return;
   const s=S.session;
+  if(s.exam){
+    const flagged=new Set(s.flagged||[]);
+    const answers=s.answers || s.items.map(()=>null);
+    // recompute remaining from wall clock
+    const elapsed=s.startedAt?Math.floor((Date.now()-s.startedAt)/1000):0;
+    const secs=(s.examCfg&&s.examCfg.secs)|| (s.core===2?EXAM.core2.secs:EXAM.core1.secs);
+    const rem=Math.max(0, secs - elapsed);
+    if(rem<=0){
+      // time expired while away — reconstruct as finished exam
+      quiz={
+        items:s.items, idx:s.idx||0, right:0,
+        answers:answers, flagged:flagged,
+        exam:true, core:s.core||1, examN:s.examN||s.items.length, examCfg:s.examCfg|| (s.core===2?EXAM.core2:EXAM.core1),
+        startedAt:s.startedAt, remaining:0, done:true, timedOut:true, results:[]
+      };
+      // score as timeout
+      let right=0; const results=[];
+      quiz.items.forEach((q,i)=>{ const ans=answers[i]; const ok=ans!==null&&ans===q.a; if(ok) right++; results.push({q,ans,ok}); });
+      quiz.right=right; quiz.results=results;
+      tab="quiz"; render(); return;
+    }
+    quiz={
+      items:s.items, idx:s.idx||0, right:s.right||0,
+      answered:(answers[s.idx]!==undefined?answers[s.idx]:null),
+      answers:answers, flagged:flagged, results:[],
+      exam:true, core:s.core||1, examN:s.examN||s.items.length, examCfg:s.examCfg|| (s.core===2?EXAM.core2:EXAM.core1),
+      startedAt:s.startedAt||Date.now(), remaining:rem, done:false
+    };
+    tab="quiz"; render(); startExamTimer(); return;
+  }
   quiz={items:s.items, idx:s.idx||0, right:s.right||0, answered:(s.answered===undefined?null:s.answered), results:s.results||[]};
   tab="quiz"; render();
 }
 function endQuiz(){
+  if(!quiz) return;
+  if(quiz.exam && !quiz.done){
+    if(!confirm("Exit exam? Your answers and time remaining are saved — you can Resume from Practice. Discard discards the whole attempt.")) return;
+    stopExamTimer(); quiz=null; S.session=null; save(); render(); return;
+  }
   if(quiz && !quiz.done && !confirm("End this quiz? Your answered questions are already saved.")) return;
-  quiz=null; S.session=null; save(); render();
+  stopExamTimer(); quiz=null; S.session=null; save(); render();
 }
 function sessionCard(){
   if(!hasSession()) return "";
-  const s=S.session, done=s.idx||0, total=s.items.length;
+  const s=S.session;
+  const total=s.items.length;
+  const isExam=!!s.exam;
+  if(isExam){
+    const cfg=s.examCfg || (s.core===2?EXAM.core2:EXAM.core1);
+    const elapsed=s.startedAt?Math.floor((Date.now()-s.startedAt)/1000):0;
+    const rem=Math.max(0, cfg.secs - elapsed);
+    const ans=(s.answers||[]).filter(v=>v!==null).length;
+    const flag=(s.flagged||[]).length;
+    const ago=Math.round((Date.now()-(s.at||Date.now()))/60000);
+    return `<div class="card"><h2>${ic("target")}Exam in progress — ${esc(cfg.label)}</h2>
+      <div class="muted" style="margin-bottom:10px">Q ${Math.min((s.idx||0)+1,total)}/${total} · ${ans} answered · ${flag} flagged · ${fmtTime(rem)} remaining${ago>0?` · paused ${ago<60?ago+" min":Math.round(ago/60)+" hr"} ago`:""}${rem<=0?` · <span class="danger">TIME EXPIRED</span>`:""}</div>
+      <div class="row">
+        <button class="btn" onclick="resumeSession()">Resume exam</button>
+        <button class="btn secondary" onclick="endQuiz()">Discard exam</button>
+      </div></div>`;
+  }
+  const done=s.idx||0;
   const ago=Math.round((Date.now()-(s.at||Date.now()))/60000);
   return `<div class="card"><h2>${ic("pencil")}Quiz in progress</h2>
     <div class="muted" style="margin-bottom:12px">You're on question ${Math.min(done+1,total)} of ${total}${ago>0?` · paused ${ago<60?ago+" min":Math.round(ago/60)+" hr"} ago`:""}.</div>
@@ -1379,7 +1586,7 @@ async function startGapQuiz(){
 }
 /* instantly retire a question you already know, before answering it */
 function retireQuestion(){
-  if(!quiz) return;
+  if(!quiz || quiz.exam) return;
   const q=quiz.items[quiz.idx], st=qs(q);
   // permanent dismissal — retired questions never resurface, even for spaced review
   st.mastered=true; st.retired=true; st.masteredAt=Date.now(); st.streak=MASTER_STREAK;
@@ -1391,6 +1598,13 @@ function retireQuestion(){
   quiz.answered=null; save(); persistSession(); render();
 }
 function answer(k){
+  // exam mode: allow changing answer, no immediate mastery side-effects
+  if(quiz && quiz.exam && !quiz.done){
+    quiz.answers[quiz.idx]=k;
+    quiz.answered=k;
+    persistSession(); render();
+    return;
+  }
   if(quiz.answered!==null) return;
   const q=quiz.items[quiz.idx], st=qs(q), ok=(k===q.a), wasMastered=st.mastered;
   quiz.answered=k; st.seen++; ok?(st.right++,quiz.right++):st.wrong++;
@@ -1417,9 +1631,18 @@ function answer(k){
   persistSession(); render();
 }
 function nextQ(){
+  // exam mode: linear advance, no scoring yet
+  if(quiz && quiz.exam && !quiz.done){
+    if(quiz.idx+1>=quiz.items.length){ /* at end — stay, let palette/submit handle it */ render(); return; }
+    quiz.idx++; quiz.answered=quiz.answers[quiz.idx]; persistSession(); render(); return;
+  }
   if(quiz.idx+1>=quiz.items.length){ quiz.done=true; S.sessions++; }
   else { quiz.idx++; quiz.answered=null; }
   persistSession(); render();
+}
+function prevQ(){
+  if(!quiz || quiz.exam==null) return;
+  if(quiz.exam && quiz.idx>0){ quiz.idx--; quiz.answered=quiz.answers[quiz.idx]; persistSession(); render(); }
 }
 function quizSetupView(){
   const missed=missedList().length;
@@ -1432,11 +1655,13 @@ function quizSetupView(){
       <button class="btn secondary" onclick="startGapQuiz()">Gap drill · 12 from weakest domains</button>
     </div>
   </div>
-  <div class="card"><h2>Exam simulation <span class="muted" style="font-weight:400">— questions weighted like the real exam</span></h2>
+  <div class="card"><h2>Exam simulation <span class="muted" style="font-weight:400">— timed, weighted, scaled 100–900 like the real exam</span></h2>
+    <div class="muted" style="margin-bottom:12px">Up to 90 Q, 90 min, pass 675 (Core 1) / 700 (Core 2). Answers and mastery are scored only when you submit — like the live exam. Flag questions and submit when ready; the clock keeps running if you switch tabs. Full bank needed — if short, the app will generate the rest before starting (requires AI key).</div>
     <div class="row">
-      <button class="btn secondary" onclick="startQuiz('core1')">Core 1 sim · 20 Q</button>
-      <button class="btn secondary" onclick="startQuiz('core2')">Core 2 sim · 20 Q</button>
+      <button class="btn" onclick="startExam(1)">Core 1 — 90 Q · 90 min · 675 to pass</button>
+      <button class="btn" onclick="startExam(2)">Core 2 — 90 Q · 90 min · 700 to pass</button>
     </div>
+    <div class="muted" style="margin-top:10px;font-size:.76rem">Have only a few minutes? Use Quick quiz or Gap drill above.</div>
   </div>
   <div class="card"><h2>Domain practice <span class="muted" style="font-weight:400">— all questions in one domain, shuffled</span></h2>
     <div class="muted" style="margin-bottom:10px">Pick a domain to test everything you've learned about it.</div>
