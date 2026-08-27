@@ -1118,6 +1118,7 @@ if(S.autoGen===undefined)S.autoGen=true;
 S.theme=S.theme||"dark"; S.quizLen=S.quizLen||10; if(S.shuffleOpts===undefined)S.shuffleOpts=true;
 S.feedback=S.feedback||"each"; S.examDate=S.examDate||""; S.dailyGoal=S.dailyGoal||20;
 S.daily=S.daily||{date:"",count:0}; S.streak=S.streak||{count:0,last:""}; S.sbCollapsed=!!S.sbCollapsed;
+S.schema=S.schema||1;
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 QUESTIONS.push(...S.aiQ);   // restore AI-generated questions from previous sessions
 let SAVE_FAILED=false;
@@ -1137,12 +1138,28 @@ function save(){
 /* Stats are keyed by a hash of the question text, not its position in the array,
    so adding questions in a future update never scrambles existing progress. */
 function qkey(q){ let h=0; const s=q.q||""; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return "q"+(h>>>0).toString(36); }
-function qs(q){ const k=qkey(q); let s=S.qstats[k];
+/* scenario rewrites keep history: old literal → new literal alias map */
+const Q_ALIAS = new Map([
+  ["Which port does HTTPS use?","You are a help-desk tech and a user cannot reach https://intranet — the firewall log shows blocked outbound. Which port must you allow? — Select ONE"],
+  ["Which service translates domain names like google.com into IP addresses?","A ticket says 'internet works by IP but not by name — ping 8.8.8.8 works, ping google.com fails.' Which service is failing?"],
+  ["Which wireless encryption standard is currently the most secure?","You are hardening a SOHO router. The owner asks for the strongest Wi-Fi security available today. Which do you choose?"],
+  ["Which RAID level mirrors data across two drives with no striping?","A small business wants simple redundancy for two 2TB drives and asks you to recommend the RAID level that mirrors with no striping. Which do you choose?"],
+  ["In a laser printer, which component melts toner onto the paper?","A user complains laser prints smudge when touched right after printing. As the tech, which component do you suspect has failed?"],
+  ["Which Windows edition feature encrypts an entire drive and can use the TPM chip?","A laptop with TPM 2.0 needs full-disk encryption so a stolen drive is unreadable. Which Windows feature do you enable?"],
+  ["Which command scans and repairs corrupted Windows system files?","Windows shows random crashes and SFC-related errors. You decide to scan and repair protected system files. Which command do you run?"],
+  ["Which malware hides deep in the OS, often concealing itself from antivirus and Task Manager?","A PC acts infected but no AV or Task Manager process is visible. As incident responder, which malware type do you suspect is hiding deep in the OS?"],
+  ["An unauthorized person slips through a secure door right behind an employee who badged in. What is this called?","You review badge logs and see an unauthorized person entered by walking in directly behind an employee who swiped. What is this physical attack called?"],
+  ["What does the 3-2-1 backup rule specify?","You are advising a client on backup strategy and cite the 3-2-1 rule. What does that rule actually specify?"],
+  ["Which type of RAM module is used in most laptops?","You are upgrading a laptop for a remote user and need to order RAM. Which module type do you order for a typical laptop?"],
+  ["Which cable category supports 10 Gbps up to 100 meters?","A customer needs 10 Gbps to every desk at 100 m. Which cable category do you spec for the new run?"],
+]);
+function qkeyWithAlias(q){ const k=qkey(q); if(S.qstats[k]) return k; for(const [oldTxt,newTxt] of Q_ALIAS){ if(q.q===newTxt){ let h=0; for(let i=0;i<oldTxt.length;i++) h=(h*31+oldTxt.charCodeAt(i))|0; const oldK="q"+(h>>>0).toString(36); if(S.qstats[oldK] && !S.qstats[k]){ S.qstats[k]=S.qstats[oldK]; } break; } } return k; }
+function qs(q){ const k=qkeyWithAlias(q); let s=S.qstats[k];
   if(!s){ s=S.qstats[k]={seen:0,right:0,wrong:0,lastWrong:false,streak:0,mastered:false,masteredAt:0,reviews:0}; }
   else{ if(s.streak===undefined)s.streak=0; if(s.mastered===undefined)s.mastered=false; if(s.masteredAt===undefined)s.masteredAt=0; if(s.reviews===undefined)s.reviews=0; }
   return s;
 }
-function qstat(q){ return S.qstats[qkey(q)]; }
+function qstat(q){ return S.qstats[qkeyWithAlias(q)]; }
 (function migrateStats(){
   const keys=Object.keys(S.qstats||{});
   if(keys.some(k=>/^\d+$/.test(k))){       // legacy index keys → hash keys
@@ -1159,7 +1176,19 @@ function qstat(q){ return S.qstats[qkey(q)]; }
       s.reviews = s.mastered ? 1 : 0;
     }
   });
-  save();
+  // scenario-rewrite alias: copy old stats to new q text keys (once)
+  if(S.schema<2){
+    for(const [oldTxt,newTxt] of Q_ALIAS){
+      let ho=0; for(let i=0;i<oldTxt.length;i++) ho=(ho*31+oldTxt.charCodeAt(i))|0; const oldK="q"+(ho>>>0).toString(36);
+      let hn=0; for(let i=0;i<newTxt.length;i++) hn=(hn*31+newTxt.charCodeAt(i))|0; const newK="q"+(hn>>>0).toString(36);
+      if(S.qstats[oldK] && !S.qstats[newK]) S.qstats[newK]=Object.assign({},S.qstats[oldK]);
+    }
+    // normalize sessions that used old string format: coerce S.session.answers to array form if needed
+    if(S.session && S.session.exam && S.session.answers && !Array.isArray(S.session.answers)){
+      S.session.answers=[S.session.answers];
+    }
+    S.schema=2; save();
+  } else save();
 })();
 
 /* ---- spaced-repetition mastery ----
