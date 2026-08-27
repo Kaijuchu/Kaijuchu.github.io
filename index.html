@@ -968,15 +968,15 @@
 <script>
 /* ================= DOMAINS ================= */
 const DOMAINS = [
-  {id:"mobile",  core:1, name:"Mobile Devices",                    weight:15},
-  {id:"net",     core:1, name:"Networking",                        weight:20},
+  {id:"mobile",  core:1, name:"Mobile Devices",                    weight:13},
+  {id:"net",     core:1, name:"Networking",                        weight:23},
   {id:"hw",      core:1, name:"Hardware",                          weight:25},
-  {id:"cloud",   core:1, name:"Virtualization & Cloud",            weight:11},
-  {id:"hwts",    core:1, name:"HW & Network Troubleshooting",      weight:29},
-  {id:"os",      core:2, name:"Operating Systems",                 weight:30},
-  {id:"sec",     core:2, name:"Security",                          weight:27},
-  {id:"swts",    core:2, name:"Software Troubleshooting",          weight:26},
-  {id:"ops",     core:2, name:"Operational Procedures",            weight:17},
+  {id:"cloud",   core:1, name:"Virtualization and Cloud Computing",weight:11},
+  {id:"hwts",    core:1, name:"Hardware and Network Troubleshooting", weight:28},
+  {id:"os",      core:2, name:"Operating Systems",                 weight:28},
+  {id:"sec",     core:2, name:"Security",                          weight:28},
+  {id:"swts",    core:2, name:"Software Troubleshooting",          weight:23},
+  {id:"ops",     core:2, name:"Operational Procedures",            weight:21},
 ];
 
 /* ================= EXAM SIMULATION CONFIG ================= */
@@ -991,7 +991,7 @@ function examPassFor(core){ return core===2?EXAM.core2.pass:EXAM.core1.pass; }
 /* ================= QUESTION BANK =================
    q: question, o: options, a: index of correct, e: explanation */
 const QUESTIONS = [
-/* ---- Mobile Devices (Core 1, 15%) ---- */
+/* ---- Mobile Devices (Core 1, 13%) ---- */
 {d:"mobile",q:"What type of RAM module is used in most laptops?",o:["DIMM","SO-DIMM","ECC RDIMM","SIMM"],a:1,e:"Laptops use SO-DIMM (Small Outline DIMM) — a physically smaller module than the full-size DIMMs in desktops."},
 {d:"mobile",q:"A user wants email on their phone to stay synchronized with the server so messages read on the phone show as read everywhere. Which protocol should be used?",o:["POP3","SMTP","IMAP","FTP"],a:2,e:"IMAP keeps mail on the server and syncs state across devices. POP3 downloads (and typically deletes) mail locally. SMTP only sends mail."},
 {d:"mobile",q:"Which technology lets a company enforce passcodes, push apps, and remotely wipe employee smartphones?",o:["VPN","MDM","NFC","DRM"],a:1,e:"Mobile Device Management (MDM) is the enterprise tool for enforcing policy, deploying apps, and remote-wiping managed devices."},
@@ -1003,7 +1003,7 @@ const QUESTIONS = [
 {d:"mobile",q:"A company phone is lost. What should be done FIRST to protect corporate data?",o:["Change the Wi-Fi password","Issue a remote wipe","Call the carrier for a new SIM","File a police report"],a:1,e:"Remote wipe (via MDM or find-my-device) immediately protects the data. Everything else can follow."},
 {d:"mobile",q:"Which connector is standard for charging and data on modern Android phones and newer iPhones?",o:["Lightning","Micro-USB","USB-C","Mini-USB"],a:2,e:"USB-C is now the universal standard — the EU mandate moved iPhone from Lightning to USB-C as well."},
 
-/* ---- Networking (Core 1, 20%) ---- */
+/* ---- Networking (Core 1, 23%) ---- */
 {d:"net",q:"Which port does HTTPS use?",o:["80","110","443","3389"],a:2,e:"HTTPS uses TCP 443. HTTP is 80, POP3 is 110, RDP is 3389. Port numbers are heavily tested — memorize the table."},
 {d:"net",q:"Which port is used by SSH?",o:["21","22","23","25"],a:1,e:"SSH uses TCP 22. FTP is 20/21, Telnet is 23 (insecure), SMTP is 25."},
 {d:"net",q:"A workstation shows an IP address of 169.254.10.15. What does this indicate?",o:["A static IP was assigned","DHCP failed — APIPA address","The DNS server is down","The subnet mask is wrong"],a:1,e:"169.254.x.x is APIPA — Windows self-assigns it when no DHCP server responds. Classic exam question."},
@@ -1029,7 +1029,7 @@ const QUESTIONS = [
 {d:"hw",q:"Which display connector carries both video and audio and is most common on TVs?",o:["VGA","DVI-D","HDMI","Serial"],a:2,e:"HDMI carries video + audio. VGA is analog video only; DVI-D is digital video only. DisplayPort also carries both and dominates on monitors."},
 {d:"hw",q:"A technician needs to print multi-part carbon forms in a warehouse. Which printer type is required?",o:["Laser","Inkjet","Thermal","Impact (dot matrix)"],a:3,e:"Only impact printers physically strike the page, so they're the only type that can print through multi-part carbon forms."},
 
-/* ---- Virtualization & Cloud (Core 1, 11%) ---- */
+/* ---- Virtualization and Cloud Computing (Core 1, 11%) ---- */
 {d:"cloud",q:"Which hypervisor type runs directly on hardware without a host operating system?",o:["Type 1 (bare metal)","Type 2 (hosted)","Container engine","Emulator"],a:0,e:"Type 1 (e.g., VMware ESXi, Hyper-V Server) runs on bare metal. Type 2 (VirtualBox, VMware Workstation) runs on top of a normal OS."},
 {d:"cloud",q:"In which cloud model does the provider manage everything and you simply use the application (e.g., Gmail)?",o:["IaaS","PaaS","SaaS","DaaS"],a:2,e:"SaaS = ready-to-use software. PaaS gives you a platform to deploy your code; IaaS gives raw infrastructure (VMs, storage) that you manage from the OS up."},
 {d:"cloud",q:"A developer wants to deploy code without managing servers or operating systems. Which cloud model fits best?",o:["IaaS","PaaS","SaaS","On-premises"],a:1,e:"PaaS (e.g., Heroku, Azure App Service) manages the OS and runtime — the developer just deploys the application."},
@@ -1040,7 +1040,7 @@ const QUESTIONS = [
 {d:"cloud",q:"What is a common use of a sandbox virtual machine?",o:["Hosting production databases","Safely testing suspicious software","Increasing GPU performance","Extending Wi-Fi range"],a:1,e:"A sandbox VM isolates untrusted software from the host — if malware detonates, you revert the snapshot and the host is untouched."},
 {d:"cloud",q:"Which term describes cloud billing where you pay only for the resources you consume?",o:["Rapid elasticity","Measured service","High availability","Load balancing"],a:1,e:"Measured (metered) service is the pay-as-you-go model — usage is tracked and billed accordingly."},
 
-/* ---- HW & Network Troubleshooting (Core 1, 29%) ---- */
+/* ---- Hardware and Network Troubleshooting (Core 1, 28%) ---- */
 {d:"hwts",q:"What is the FIRST step of the CompTIA troubleshooting methodology?",o:["Establish a theory of probable cause","Identify the problem","Test the theory","Document findings"],a:1,e:"1) Identify the problem, 2) establish a theory, 3) test the theory, 4) establish a plan, 5) implement, 6) verify full functionality, 7) document. Memorize the order."},
 {d:"hwts",q:"After implementing a solution, what should a technician do NEXT according to the methodology?",o:["Document findings","Verify full system functionality","Establish a new theory","Escalate the ticket"],a:1,e:"Verify full functionality (and implement preventive measures) comes after implementing the fix; documentation is the final step."},
 {d:"hwts",q:"A hard drive is making rhythmic clicking noises and files are disappearing. What should the technician do FIRST?",o:["Defragment the drive","Back up the data immediately","Run chkdsk overnight","Replace the SATA cable"],a:1,e:"Clicking = imminent mechanical failure. Back up data before anything else — diagnostics can wait, the data can't."},
@@ -1053,7 +1053,7 @@ const QUESTIONS = [
 {d:"hwts",q:"A network link works but is much slower than expected, and the switch port shows late collisions. What is the likely cause?",o:["A DNS misconfiguration","A duplex mismatch","An APIPA address","A bad power supply"],a:1,e:"One end full-duplex, the other half-duplex = duplex mismatch → collisions and slow throughput. Set both to auto-negotiate."},
 {d:"hwts",q:"A PC randomly reboots and you notice bulging capacitors on the motherboard. What is the fix?",o:["Reinstall Windows","Replace the motherboard","Flash the BIOS","Add a surge protector"],a:1,e:"Bulging/leaking capacitors mean the board is failing — replacement is the reliable fix."},
 
-/* ---- Operating Systems (Core 2, 30%) ---- */
+/* ---- Operating Systems (Core 2, 28%) ---- */
 {d:"os",q:"Which hardware component is required to upgrade a PC to Windows 11?",o:["TPM 2.0","A discrete GPU","ECC RAM","An optical drive"],a:0,e:"Windows 11 requires TPM 2.0, Secure Boot-capable UEFI, and a supported CPU. TPM questions are a favorite on the 220-1202."},
 {d:"os",q:"Which Windows edition feature encrypts an entire drive and can use the TPM chip?",o:["EFS","BitLocker","Windows Hello","Storage Spaces"],a:1,e:"BitLocker is full-disk encryption (Pro and up), often keyed via TPM. EFS encrypts individual files/folders, not the whole disk."},
 {d:"os",q:"Which command scans and repairs corrupted Windows system files?",o:["chkdsk /f","sfc /scannow","diskpart","ipconfig /flushdns"],a:1,e:"sfc /scannow (System File Checker) verifies and repairs protected system files. chkdsk checks the disk/file system instead."},
@@ -1066,7 +1066,7 @@ const QUESTIONS = [
 {d:"os",q:"A technician needs to see why a service failed to start. Which Windows tool shows system and application logs?",o:["Task Manager","Event Viewer","Device Manager","msconfig"],a:1,e:"Event Viewer holds System/Application/Security logs — the first stop for diagnosing service failures and crashes."},
 {d:"os",q:"Which Windows tool would you use to disable a faulty device's driver?",o:["Task Scheduler","Device Manager","Event Viewer","Registry Editor"],a:1,e:"Device Manager manages hardware: update, roll back, or disable drivers there."},
 
-/* ---- Security (Core 2, 27%) ---- */
+/* ---- Security (Core 2, 28%) ---- */
 {d:"sec",q:"Which malware type encrypts a victim's files and demands payment for the decryption key?",o:["Worm","Trojan","Ransomware","Spyware"],a:2,e:"Ransomware encrypts data and extorts payment. Best defense: tested offline backups."},
 {d:"sec",q:"Which malware hides deep in the OS, often concealing itself from antivirus and Task Manager?",o:["Adware","Rootkit","Keylogger","Worm"],a:1,e:"Rootkits gain privileged access and hide their presence — often requiring boot-time scans or a full rebuild to remove."},
 {d:"sec",q:"An attacker calls pretending to be the help desk and asks a user for their password. What is this attack?",o:["Phishing","Vishing","Smishing","Tailgating"],a:1,e:"Vishing = voice phishing (phone). Phishing = email, smishing = SMS. Know all three definitions cold."},
@@ -1079,7 +1079,7 @@ const QUESTIONS = [
 {d:"sec",q:"Which Windows feature prompts for confirmation when a program tries to make system-level changes?",o:["SmartScreen","BitLocker","User Account Control (UAC)","Windows Hello"],a:2,e:"UAC intercepts privilege elevation with a consent prompt, limiting silent system changes by malware."},
 {d:"sec",q:"Why is MAC address filtering considered a weak security control on its own?",o:["It slows the network down","MAC addresses are easily spoofed","It blocks WPA3","It only works on 5 GHz"],a:1,e:"Attackers can trivially clone an allowed MAC address. Filtering adds minor friction, not real security — pair with WPA2/WPA3."},
 
-/* ---- Software Troubleshooting (Core 2, 26%) ---- */
+/* ---- Software Troubleshooting (Core 2, 23%) ---- */
 {d:"swts",q:"Windows fails to boot with a 'BOOTMGR is missing' style error. Which command rebuilds the boot configuration data?",o:["sfc /scannow","bootrec /rebuildbcd","chkdsk /r","diskpart clean"],a:1,e:"From the Recovery Environment: bootrec /fixmbr, /fixboot, and /rebuildbcd repair boot records. /rebuildbcd rebuilds the BCD store."},
 {d:"swts",q:"Which environment do you boot into to run Startup Repair or System Restore when Windows won't start?",o:["BIOS setup","Windows Recovery Environment (WinRE)","Safe Mode with Networking","Task Manager"],a:1,e:"WinRE hosts Startup Repair, System Restore, image recovery, and a command prompt. It launches automatically after failed boots or via installation media."},
 {d:"swts",q:"A PC is suspected of malware infection. Which startup mode loads Windows with only essential drivers for remediation?",o:["Clean boot","Safe Mode","Fast startup","Recovery console"],a:1,e:"Safe Mode loads a minimal driver set, preventing most malware from activating so tools can remove it."},
@@ -1091,7 +1091,7 @@ const QUESTIONS = [
 {d:"swts",q:"A system crashes with a Blue Screen after a driver update. What is the FIRST thing to try?",o:["Replace the RAM","Roll back the driver","Reinstall Windows","Flash the BIOS"],a:1,e:"BSOD right after a driver update points at that driver — roll it back in Device Manager (or via Safe Mode if Windows won't boot)."},
 {d:"swts",q:"Which symptom most strongly suggests active malware rather than a hardware problem?",o:["POST beep codes","Security software and Task Manager are disabled","A clicking hard drive","Dead pixels"],a:1,e:"Malware commonly disables defenses (AV, Task Manager, Registry Editor) to protect itself. The other options are hardware symptoms."},
 
-/* ---- Operational Procedures (Core 2, 17%) ---- */
+/* ---- Operational Procedures (Core 2, 21%) ---- */
 {d:"ops",q:"What does the 3-2-1 backup rule specify?",o:["3 backups, 2 clouds, 1 password","3 copies of data, 2 different media types, 1 offsite","3 drives, 2 partitions, 1 OS","3 daily, 2 weekly, 1 monthly backup"],a:1,e:"Keep 3 copies of your data, on 2 different media types, with 1 copy offsite. Tested directly on the exam."},
 {d:"ops",q:"Which backup type copies only files changed since the LAST backup of any kind?",o:["Full","Differential","Incremental","Synthetic"],a:2,e:"Incremental = changes since the last backup of any type (fast backup, slower restore). Differential = all changes since the last FULL backup (grows daily, faster restore)."},
 {d:"ops",q:"Which backup type backs up everything changed since the last FULL backup?",o:["Incremental","Differential","Snapshot","Mirror"],a:1,e:"Differential grows each day until the next full backup. Restore needs just the full + latest differential — fewer sets than incremental."},
@@ -2312,15 +2312,15 @@ async function runGen(){
 
 /* ================= LEARN: COURSES ================= */
 const COURSES={
- mobile:[
-  {h:"What this domain covers",b:"Laptops, tablets and smartphones — their hardware, connectivity and configuration. 15% of Core 1. Laptop components and mobile setup (email, MDM) are the heaviest testers."},
+  mobile:[
+   {h:"What this domain covers",b:"Laptops, tablets and smartphones — their hardware, connectivity and configuration. 13% of Core 1. Laptop components and mobile setup (email, MDM) are the heaviest testers."},
   {h:"Laptop hardware",b:"RAM = SO-DIMM (smaller than desktop DIMM). SSD form factors: M.2 and mSATA. Displays: IPS (great colour/angles), OLED (true blacks), TN (fast, worst colour). Know which parts are user-replaceable — RAM, SSD, battery, keyboard."},
   {h:"Connectivity",b:"Wi-Fi, Bluetooth pairing, NFC (tap-to-pay, a few cm), hotspot/tethering, cellular (GSM vs CDMA), GPS. eSIM = embedded reprogrammable SIM, no physical card — new on this exam."},
   {h:"Configuration & email",b:"IMAP keeps mail on the server and syncs across devices; POP3 downloads and usually deletes; Exchange ActiveSync for corporate. MDM (Mobile Device Management) enforces policy, pushes apps, and can remote-wipe a lost device."},
   {h:"Exam focus",b:"Laptop display-connector types and SO-DIMM are tested repeatedly. IMAP vs POP3 is a guaranteed question. If a phone is lost, remote wipe first."}
  ],
- net:[
-  {h:"What this domain covers",b:"The networking a technician needs day to day — addressing, ports, cables, wireless. 20% of Core 1 and one of the most practical domains."},
+  net:[
+   {h:"What this domain covers",b:"The networking a technician needs day to day — addressing, ports, cables, wireless. 23% of Core 1 and one of the most practical domains."},
   {h:"TCP/IP fundamentals",b:"IPv4 address + subnet mask + default gateway + DNS. DHCP hands out addresses; static is manual. DNS resolves names to IPs. APIPA (169.254.x.x) means DHCP failed — the device self-assigned."},
   {h:"Ports to memorise",b:"HTTP 80 · HTTPS 443 · FTP 20/21 · SSH 22 · Telnet 23 · SMTP 25 · DNS 53 · POP3 110 · IMAP 143 · RDP 3389. Learn this table cold — it's free marks."},
   {h:"Wireless & cables",b:"802.11ax = Wi-Fi 6, 802.11ac = Wi-Fi 5. Bands 2.4/5/6 GHz. WPA3 > WPA2 (never WEP). Cat6a = 10 Gbps at 100 m; Cat6 = 10 Gbps to ~55 m; Cat5e = 1 Gbps. Fiber: single-mode (laser, long) vs multimode (LED, short)."},
@@ -2340,36 +2340,36 @@ const COURSES={
   {h:"Deployment & traits",b:"Public / private / hybrid / community. Key characteristics: rapid elasticity (scale on demand), measured service (pay-as-you-go), resource pooling, broad network access."},
   {h:"Exam focus",b:"IaaS/PaaS/SaaS definitions and hypervisor types are the most-tested. Containers share the host kernel (lighter than VMs); snapshots let you roll a VM back instantly."}
  ],
- hwts:[
-  {h:"What this domain covers",b:"The biggest Core 1 domain at 29% — roughly 26 questions. Scenario-based: a symptom is described, you pick the cause or the first step."},
+  hwts:[
+   {h:"What this domain covers",b:"The biggest Core 1 domain at 28% — roughly 25 questions. Scenario-based: a symptom is described, you pick the cause or the first step."},
   {h:"The 7-step methodology",b:"1) Identify the problem 2) Establish a theory 3) Test the theory 4) Establish a plan 5) Implement 6) Verify full functionality (+ preventive measures) 7) Document. Memorise the order — it's tested directly and embedded in scenarios."},
   {h:"Hardware symptoms",b:"Clicking/grinding HDD or S.M.A.R.T. error → back up the data FIRST. No POST + beep codes → RAM/GPU. Overheating shutdowns → clean dust, reapply thermal paste. Bulging capacitors → replace the board."},
   {h:"Network troubleshooting",b:"ipconfig, ping, tracert, nslookup. APIPA (169.254.x.x) = DHCP failed. Local works but internet doesn't → test a raw IP (8.8.8.8) then a name to isolate DNS. Slow + collisions → duplex mismatch."},
   {h:"Exam focus",b:"Know the 7 steps cold and always back up before working on a failing drive. Ghosting on laser prints = fuser; the laser-print process shows up here too."}
  ],
- os:[
-  {h:"What this domain covers",b:"The largest Core 2 domain at 30% — Windows 10/11 in depth, plus macOS and Linux basics. Together with Software Troubleshooting it's over half of Core 2."},
+  os:[
+   {h:"What this domain covers",b:"Operating Systems and Security are tied as the largest Core 2 domains at 28% each — Windows 10/11 in depth, plus macOS and Linux basics. Together with Software Troubleshooting (23%) it's still over half (51%) of Core 2."},
   {h:"Windows features & tools",b:"Win11 needs TPM 2.0 + Secure Boot. BitLocker (full-disk, Pro+), Group Policy, RDP. Admin tools: Task Manager, Device Manager, Event Viewer (logs), msconfig, MMC, Computer Management."},
   {h:"Command line",b:"Windows: ipconfig, ping, tracert, sfc /scannow (repair system files), chkdsk (disk), diskpart. Linux (new on 220-1202): ls, cd, pwd, chmod (permissions), chown, grep, sudo, apt."},
   {h:"Install & other OS",b:"GPT (UEFI, >2 TB, 128 partitions) vs MBR (legacy, 2 TB, 4 primary). Clean install vs upgrade. macOS: Time Machine (backup), FileVault (encryption), Keychain (passwords), Spotlight (search)."},
   {h:"Exam focus",b:"Know which admin tool to use when (Task Manager vs Event Viewer vs Resource Monitor). TPM 2.0 for Win11 and the new Linux commands (chmod, ls -la, grep) are common."}
  ],
- sec:[
-  {h:"What this domain covers",b:"Security from a technician's seat — you remove the malware, set BitLocker, and coach the user. 27% of Core 2, physical and logical controls."},
+  sec:[
+   {h:"What this domain covers",b:"Security from a technician's seat — you remove the malware, set BitLocker, and coach the user. 28% of Core 2, physical and logical controls."},
   {h:"Malware & removal",b:"Types: virus, worm, trojan, ransomware, spyware, rootkit, keylogger. CompTIA's removal order: identify/quarantine → disable System Restore → remediate in Safe Mode → schedule scans → re-enable System Restore → educate the user."},
   {h:"Social engineering",b:"Phishing (email), vishing (voice/phone), smishing (SMS). Physical: tailgating (following someone through a door), shoulder surfing, dumpster diving. Know the definitions cold."},
   {h:"Access & encryption",b:"Least privilege, MFA (something you know/have/are), UAC prompts on privilege elevation. BitLocker = full-disk (often TPM-keyed); EFS = individual files. WPA3 > WPA2; MAC filtering is weak (spoofable)."},
   {h:"Exam focus",b:"The malware-removal order is tested directly, often as a drag-and-drop. Disabling System Restore BEFORE remediating is the step people forget. Educating the user is always last."}
  ],
- swts:[
-  {h:"What this domain covers",b:"Applying the OS and Security knowledge to fix things. 26% of Core 2 — scenario questions about boot failures, crashes and malware symptoms."},
+  swts:[
+   {h:"What this domain covers",b:"Applying the OS and Security knowledge to fix things. 23% of Core 2 — scenario questions about boot failures, crashes and malware symptoms."},
   {h:"Boot & recovery",b:"Windows Recovery Environment (WinRE) hosts Startup Repair, System Restore and a command prompt. bootrec /fixmbr, /fixboot, /rebuildbcd repair boot records. Safe Mode loads minimal drivers for malware removal."},
   {h:"Malware symptoms",b:"Browser redirects, changed homepage, new toolbars, pop-ups, and — the big tell — disabled Task Manager / antivirus / Registry Editor. Malware disables defences to protect itself."},
   {h:"App & profile issues",b:"Legacy app won't run → compatibility mode. Crashes → Event Viewer + Task Manager. Login gives a temporary desktop with no files → corrupt user profile. Mobile app misbehaving → clear cache before clearing data."},
   {h:"Exam focus",b:"WinRE tools and the bootrec commands appear on PBQs. Recognising malware symptoms (disabled security tools, redirects) versus hardware symptoms is the core skill."}
  ],
- ops:[
-  {h:"What this domain covers",b:"The 'soft skills and compliance' domain — documentation, change management, safety, professionalism. 17% of Core 2 and very learnable; don't skip it."},
+  ops:[
+   {h:"What this domain covers",b:"The 'soft skills and compliance' domain — documentation, change management, safety, professionalism. 21% of Core 2 and very learnable; don't skip it."},
   {h:"Documentation & change",b:"SOPs, ticketing, asset inventory, network diagrams, knowledge base. Change management needs a request, approval, impact analysis, a rollback plan, and a maintenance window."},
   {h:"Backups",b:"3-2-1 rule: 3 copies, 2 media types, 1 offsite. Full = everything. Incremental = changes since the last backup of any kind (fast backup, slow restore). Differential = changes since the last full (grows daily, faster restore)."},
   {h:"Safety & scripting",b:"ESD: ground yourself with an antistatic wrist strap. SDS/MSDS sheets for chemical/battery handling. Recognise script types: .bat, .ps1 (PowerShell), .py (Python), .sh (shell). Handle PII per policy; AUP defines acceptable use."},
