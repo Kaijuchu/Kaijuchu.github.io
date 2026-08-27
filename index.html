@@ -913,6 +913,25 @@
   #nav button.just-active{ animation:navEngage .3s steps(2,end) both !important; }
   @media (prefers-reduced-motion:reduce){
     .lab-tile:hover::after,.focus-item:hover::after,.opt:hover::after,.btn:hover,#nav button.just-active{ animation:none!important } }
+  /* ---- exam simulation ---- */
+  .exam-card{ overflow:visible }
+  .exam-head{ display:flex; justify-content:space-between; gap:16px; align-items:flex-start; margin:-2px 0 10px; flex-wrap:wrap }
+  .exam-timer-wrap{ display:flex; flex-direction:column; align-items:flex-end; gap:2px; min-width:90px }
+  .exam-timer{ font-family:'JetBrains Mono',monospace; font-weight:800; font-size:1.35rem; letter-spacing:.06em; line-height:1; color:var(--ink); border:1px solid var(--line); padding:6px 10px; background:var(--card2); min-width:96px; text-align:center }
+  .exam-timer.warn{ border-color:var(--warn); color:var(--warn); box-shadow:0 0 10px rgba(255,184,77,.25) }
+  .exam-timer.danger{ border-color:var(--bad); color:var(--bad); box-shadow:0 0 12px rgba(255,93,108,.3); animation:sigFlick .9s steps(1) infinite }
+  .exam-progress{ margin:10px 0 6px }
+  .qpal-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(36px,1fr)); gap:6px; margin-top:10px }
+  .qpal{ height:34px; border:1px solid var(--line-soft); background:transparent; color:var(--dim); font-family:'JetBrains Mono',monospace; font-size:.78rem; font-weight:700; cursor:pointer; transition:.12s }
+  .qpal.ans{ background:var(--card2); border-color:var(--line); color:var(--ink) }
+  .qpal.flagged{ border-color:var(--warn); color:var(--warn); box-shadow:inset 0 0 0 1px var(--warn) }
+  .qpal.cur{ outline:1px solid var(--ink); outline-offset:1px; border-color:var(--ink); color:var(--ink) }
+  .qpal:hover{ border-color:var(--ink); color:var(--ink) }
+  .qpal-legend{ display:inline-block; width:10px; height:10px; vertical-align:-1px; border:1px solid var(--line-soft); margin-right:4px }
+  .qpal-legend.ans{ background:var(--card2); border-color:var(--line) }
+  .qpal-legend.flagged{ border-color:var(--warn) }
+  .qpal-legend.cur{ outline:1px solid var(--ink) }
+  @media(max-width:520px){ .qpal-grid{ grid-template-columns:repeat(9,1fr) } }
 </style>
 </head>
 <body>
@@ -1254,6 +1273,7 @@ function render(){ nav();
   renderAiDock();
   stampCards();
   afterRender();
+  if(quiz && quiz.exam && !quiz.done && !quiz._timer) startExamTimer();
   if(switched) window.scrollTo(0,0);
 }
 /* stray 6-digit HUD codes in each panel's corner (terminal-theme decoration) */
@@ -1698,7 +1718,85 @@ function quizSetupView(){
     <button class="btn secondary small" style="margin-top:10px" onclick="openSettings()">${ic("gear")} Set up AI</button>`}
   </div>`;
 }
+function examActiveView(){
+  const q=quiz.items[quiz.idx], dom=DOMAINS.find(d=>d.id===q.d);
+  const sel=quiz.answers[quiz.idx];
+  const p=examProgress();
+  const rem=remainingSeconds();
+  const flagged=quiz.flagged.has(quiz.idx);
+  const total=quiz.items.length;
+  const cfg=quiz.examCfg;
+  // palette: 1..n grid
+  const palette=quiz.items.map((_,i)=>{
+    const st = quiz.answers[i]!==null ? "ans" : "un";
+    const fl = quiz.flagged.has(i) ? " flagged":"";
+    const cur = i===quiz.idx ? " cur":"";
+    const label=i+1;
+    return `<button class="qpal ${st}${fl}${cur}" onclick="jumpToQ(${i})" title="${st==="ans"?"Answered":"Unanswered"}${quiz.flagged.has(i)?" · Flagged":""}">${label}</button>`;
+  }).join("");
+  return `<div class="card exam-card">
+    <div class="exam-head">
+      <div class="qnum">${esc(cfg.label)} · Question ${quiz.idx+1} of ${total} · ${esc(dom.name)}<span class="tag ${dom.core===1?'c1':'c2'}">Core ${dom.core}</span>${flagged?`<span class="tag" style="background:rgba(255,184,77,.25);color:var(--warn);border-color:var(--warn)">FLAGGED</span>`:""}</div>
+      <div class="exam-timer-wrap"><span id="exam-timer" class="exam-timer${rem<=300?" danger":rem<=900?" warn":""}">${fmtTime(rem)}</span><span class="muted" style="font-size:.65rem;letter-spacing:.08em">REMAINING</span></div>
+    </div>
+    <div class="exam-progress"><div class="bar" style="height:8px"><div style="width:${Math.round(100*p.ans/total)}%;--w:${Math.round(100*p.ans/total)}%"></div></div><div class="muted" style="font-size:.72rem;margin-top:6px">${p.ans}/${total} answered · ${p.flag} flagged · ${total-p.ans} remaining</div></div>
+    <div class="question" style="margin-top:12px">${esc(q.q)}</div>
+    ${(q.perm||[0,1,2,3]).map((oi,pos)=>{
+      const isSel=oi===sel;
+      return `<button class="opt${isSel?" sel":""}" onclick="answer(${oi})">${String.fromCharCode(65+pos)}. ${esc(q.o[oi])}</button>`;
+    }).join("")}
+    <div class="row" style="margin-top:12px">
+      <button class="btn secondary small" onclick="prevQ()" ${quiz.idx===0?"disabled":""}>← Previous</button>
+      <button class="btn secondary small" onclick="toggleFlag()" style="${flagged?"border-color:var(--warn);color:var(--warn)":""}">${flagged?`★ Unflag`:`☆ Flag for review`}</button>
+      <button class="btn small" onclick="nextQ()" ${quiz.idx+1>=total?"disabled":""}>Next →</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Question navigator <span class="muted" style="font-weight:400">— jump to any question, then Submit</span></h2>
+    <div class="qpal-grid">${palette}</div>
+    <div class="muted" style="margin-top:10px;font-size:.72rem;display:flex;gap:14px;flex-wrap:wrap"><span><i class="qpal-legend ans"></i> Answered</span><span><i class="qpal-legend un"></i> Unanswered</span><span><i class="qpal-legend flagged"></i> Flagged</span><span><i class="qpal-legend cur"></i> Current</span></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn" onclick="requestSubmitExam()" style="background:var(--ink);color:var(--bg)">Submit exam</button>
+      <button class="btn secondary" onclick="endQuiz()">Exit / Save for later</button>
+    </div>
+    <div class="muted" style="margin-top:8px;font-size:.72rem">Submit is final — you get a scaled 100–900 score and PASS/FAIL. The clock keeps running if you switch tabs.</div>
+  </div>`;
+}
+function examResultView(){
+  const total=quiz.items.length;
+  const pct=total? (quiz.right/total):0;
+  const scaled=scaledScore(pct);
+  const cfg=quiz.examCfg|| (quiz.core===2?EXAM.core2:EXAM.core1);
+  const pass=examPassFor(quiz.core);
+  const isPass=scaled>=pass;
+  const rawPct=Math.round(pct*100);
+  const byDom={}; quiz.results.forEach(r=>{ byDom[r.q.d]=byDom[r.q.d]||{r:0,t:0}; byDom[r.q.d].t++; if(r.ok)byDom[r.q.d].r++; });
+  const totalM=quiz.justMastered||0;
+  return `<div class="card center">
+    <h2>${esc(cfg.label)} — Exam result${quiz.timedOut?` <span class="tag danger" style="background:rgba(255,93,108,.15);color:var(--bad)">TIMED OUT</span>`:""}</h2>
+    <div class="result-big" style="color:${isPass?'var(--good)':'var(--bad)'}">${isPass?'PASS':'FAIL'}</div>
+    <div style="font-size:1.35rem;font-weight:800;letter-spacing:-.02em;margin:6px 0">${scaled}<span style="color:var(--muted);font-weight:600"> / 900</span><span style="color:${isPass?'var(--good)':'var(--bad)'};font-size:.85rem;margin-left:10px">${isPass?`${ic("check")} PASS`:`${ic("x")} FAIL`} · ${pass} to pass</span></div>
+    <div class="muted">${quiz.right} / ${total} correct · ${rawPct}% · ${quiz.timedOut?"Time expired — unanswered counted as wrong":"Completed with "+fmtTime(quiz.examCfg.secs - remainingSeconds())+" elapsed"}</div>
+    ${totalM?`<div class="pill" style="margin-top:12px;display:inline-block">${ic("check")} ${totalM} question${totalM>1?"s":""} newly mastered</div>`:""}
+  </div>
+  <div class="card"><h3>By domain this exam</h3>
+    ${Object.entries(byDom).map(([d,v])=>{const dom=DOMAINS.find(x=>x.id===d);
+      const dpct=Math.round(100*v.r/v.t);
+      return `<div class="stat-line"><span>${dom.name} <span class="muted" style="font-size:.72rem">· ${dom.weight}% of exam</span></span><span style="color:${accColor(v.r/v.t)}">${v.r}/${v.t} · ${dpct}%</span></div>`;}).join("")}
+  </div>
+  ${quiz.results.some(r=>!r.ok)?`<div class="card"><h3>Missed &amp; unanswered</h3>
+    ${quiz.results.filter(r=>!r.ok).map(r=>`<div class="explain" style="margin-bottom:10px"><b>${esc(r.q.q)}</b><br>
+    Your answer: ${r.ans===null?'<i class="danger">Unanswered</i>':esc(String.fromCharCode(65+r.ans)+". "+r.q.o[r.ans])}<br>
+    Correct: ${String.fromCharCode(65+r.q.a)}. ${esc(r.q.o[r.q.a])}<br>${esc(r.q.e)}</div>`).join("")}</div>`:""}
+  <div class="row"><button class="btn" onclick="startExam(${quiz.core})">Retake ${esc(cfg.label)} (fresh 90)</button>
+  <button class="btn secondary" onclick="go('quiz')">Practice</button>
+  <button class="btn secondary" onclick="go('dash')">Dashboard</button></div>`;
+}
 function quizView(){
+  if(quiz && quiz.exam){
+    if(quiz.done) return examResultView();
+    return examActiveView();
+  }
   if(quiz.done){
     const pct=quiz.items.length?Math.round(100*quiz.right/quiz.items.length):0;
     const byDom={};
