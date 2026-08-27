@@ -1124,6 +1124,11 @@ const QUESTIONS = [
 a:["Place and secure the router (physical)","Connect ISP modem to router WAN, then router LAN to switch","Change default admin password and update firmware","Configure SSID, WPA3, and passphrase","Enable DHCP with correct scope and test connectivity"],e:"Physical → cabling → harden admin/firmware → wireless security → services/testing. Order matters for hardening."},
 {d:"os",t:"order",q:"Windows boot repair — put the WinRE bootrec sequence in the order you’d try — drag to reorder.",items:["bootrec /rebuildbcd","bootrec /fixboot","bootrec /fixmbr"],a:["bootrec /fixmbr","bootrec /fixboot","bootrec /rebuildbcd"],e:"Classic fixmbr → fixboot → rebuildbcd sequence from WinRE."},
 {d:"swts",t:"order",q:"A PC is slow: put the triage order for a *malware-suspected* slowdown in correct order — drag to reorder.",items:["Run full AV/AM scans in Safe Mode","Interview the user about recent changes/installs","Check Task Manager for resource bottleneck","Isolate the box from the network and back up critical data"],a:["Interview the user about recent changes/installs","Isolate the box from the network and back up critical data","Check Task Manager for resource bottleneck","Run full AV/AM scans in Safe Mode"],e:"Interview → isolate/back up → diagnose bottleneck → scan. Don’t scan before isolating/backing up."},
+/* ---- PBQ simulations (A+ simulation PBQs — skippable, auto-saved, Reset per-PBQ) ---- */
+{d:"hwts",t:"sim-term",q:"PBQ — Ticket #4821 — user reports 'internet is down on my PC.' Use the terminal (ipconfig, ping, tracert, nslookup) to gather evidence, then type diagnose &lt;dhcp|dns|gateway&gt;.",a:"dhcp",e:"This PBQ uses a random fault per attempt — APIPA (169.254.x.x) = DHCP failure, ping-by-IP-works-but-name-fails = DNS, gateway timeout = router/gateway. Use the terminal correctly before diagnosing."},
+{d:"hwts",t:"sim-term",q:"PBQ — Ticket #4822 — user can ping 8.8.8.8 but not intranet by name; nslookup times out. Use the terminal to confirm, then diagnose.",a:"dns",e:"Simulated PBQ — diagnosis is scored, not each command. Collect evidence (ping IP vs name, nslookup) then diagnose. Strict: only the exact fault counts."},
+{d:"hw",t:"sim-pc",q:"PBQ — Build the PC: select each part then click its correct zone on the board. All 7 must be exact — this is scored strict like the real PBQ.",a:"pc-done",e:"Exam takeaways: LGA1700 socket = CPU, 8-pin EPS top-left = CPU power, DDR5 DIMM = RAM, 24-pin ATX = main board, M.2 = NVMe (one screw, no cables), PCIe x16 = GPU, SATA = drive data. Every placement must be exact."},
+{d:"hw",t:"sim-pc",q:"PBQ — A customer’s CAD workstation needs a rebuild: place CPU, RAM, NVMe, GPU, 24-pin ATX, 8-pin EPS, and SATA data cable in their exact zones.",a:"pc-done",e:"Same board as the lab — scored strict. Tip: read the zone labels carefully; EPS vs PCIe power are different!"}, 
 ];
 
 /* ================= STATE ================= */
@@ -1339,6 +1344,9 @@ function stampCards(){
 function afterRender(){
   if(tab==="labs" && lab==="cable") init3D();
   if(tab==="labs" && lab==="term"){ const i=document.getElementById("term-in"); if(i) i.focus(); }
+  if(tab==="quiz" && quiz && quiz.exam && quiz.items && quiz.items[quiz.idx] && quiz.items[quiz.idx].t==="sim-term"){
+    const inp=document.getElementById("exam-term-in"); if(inp){ inp.focus(); const out=document.getElementById("exam-term-out"); if(out) out.scrollTop=out.scrollHeight; }
+  }
 }
 
 /* ================= DASHBOARD ================= */
@@ -1403,8 +1411,11 @@ async function startQuiz(mode){
     await maybeTopUp(ids);                       // auto-generate if running low
     items=selectQuestions(ids,S.quizLen);
     if(!items.length){ items=selectQuestions(ids,S.quizLen,{includeMastered:true}); }  // all mastered → maintenance
+    // practice drills stay single/multi/order — sim PBQs are exam-only, like real A+ (skippable simulations)
+    items=items.filter(q=> q.t!=="sim-term" && q.t!=="sim-pc");
+    if(!items.length){ items=selectQuestions(ids,S.quizLen,{includeMastered:true}).filter(q=> q.t!=="sim-term" && q.t!=="sim-pc"); }
   }
-  else if(mode==="missed"){ items=shuffle(missedList()); }
+  else if(mode==="missed"){ items=shuffle(missedList()).filter(q=> q.t!=="sim-term" && q.t!=="sim-pc"); }
   if(!items.length){ alert("No questions available for that mode yet."); return; }
   quiz={items:prep(items), idx:0, right:0, answered:null, results:[]};
   tab="quiz"; persistSession(); render();
@@ -1448,19 +1459,21 @@ async function startExam(core){
     items.push(...extra);
   }
   if(items.length > n) items=shuffle(items).slice(0,n);
-  // ensure format mix: guarantee at least several multi/order questions (if they exist) appear — strict exam has ~15-20% non-single
+  // ensure format mix: guarantee multi/order/sim PBQs appear — A+ has ~15-20% non-single plus 3-5 sims at the start
   {
     const allForCore=pool(ids);
     const multis=allForCore.filter(q=>q.t==="multi" && (!qstat(q)||!qstat(q).retired));
     const orders=allForCore.filter(q=>q.t==="order" && (!qstat(q)||!qstat(q).retired));
+    const sims=allForCore.filter(q=>(q.t==="sim-term"||q.t==="sim-pc") && (!qstat(q)||!qstat(q).retired));
     const hasMulti=new Set(items.filter(q=>q.t==="multi").map(q=>q.i));
     const hasOrder=new Set(items.filter(q=>q.t==="order").map(q=>q.i));
+    const hasSim=new Set(items.filter(q=>q.t==="sim-term"||q.t==="sim-pc").map(q=>q.i));
     const needMulti=multis.filter(q=>!hasMulti.has(q.i));
     const needOrder=orders.filter(q=>!hasOrder.has(q.i));
-    // inject up to all available multis/orders by swapping singles, keep total n
-    const toInject=[...needMulti, ...needOrder];
+    const needSim=sims.filter(q=>!hasSim.has(q.i));
+    // prioritize sim PBQs (like real exam’s first 3-10), then multi/order
+    const toInject=[...needSim, ...needMulti, ...needOrder];
     if(toInject.length){
-      // prefer to replace singles first
       let singlesIdx=[];
       items.forEach((q,i)=>{ if((q.t||"single")==="single") singlesIdx.push(i); });
       shuffle(singlesIdx);
@@ -1481,6 +1494,18 @@ async function startExam(core){
   }
   if(!items.length){ alert("No questions available for that exam yet."); return; }
   items=shuffle(items);
+  // official: PBQ sims sit in the first 3-10 — move them there so you encounter the simulation shell first and can skip/return
+  {
+    const sims=items.filter(q=>q.t==="sim-term"||q.t==="sim-pc");
+    if(sims.length){
+      const rest=items.filter(q=>!(q.t==="sim-term"||q.t==="sim-pc"));
+      shuffle(sims); shuffle(rest);
+      // intersperse sims within first 10: splice them at the top
+      items=[...sims, ...rest];
+      // if we have 4 sims, they will be Q1-4; if 2, Q1-2 — matches “3-5 at start”
+      if(items.length>n) items=items.slice(0,n);
+    }
+  }
   const now=Date.now();
   quiz={
     items:prep(items), idx:0, right:0, answered:null, results:[],
@@ -1501,9 +1526,21 @@ function prep(items){
     if(t==="multi"){
       const n=it.o.length;
       const perm=S.shuffleOpts?shuffle([...Array(n).keys()]):[...Array(n).keys()];
-      // remap correct indices through perm: perm is display order of old indices
-      // we keep a as original indices; answer handling compares original indices
       return {...it, t:"multi", perm:perm, a:it.a.slice(), pick:it.pick||it.a.length };
+    }
+    if(t==="sim-term"){
+      const scen=SCENS[Math.floor(Math.random()*SCENS.length)];
+      const lines=[];
+      const push=(txt,c)=>lines.push({t:txt,c:c||""});
+      push('Ticket — '+it.q.replace(/^PBQ — /,''),'sys');
+      push('Investigate with: ipconfig [/all|/renew|/flushdns], ping <ip|name>, tracert <ip|name>, nslookup <name>','sys');
+      push('When confident:  diagnose dhcp | dns | gateway     (help, clear, hint)','sys');
+      push('');
+      push('C:\\Users\\tafe> (type a command and press Enter)','sys');
+      return {...it, t:"sim-term", scen:scen, termLines:lines, a:scen.id, showInstr:true, pick:null, perm:null, items:null};
+    }
+    if(t==="sim-pc"){
+      return {...it, t:"sim-pc", pcPlaced:{}, pcSel:null, pcMsg:"Select a part, then click its zone on the board.", pcGood:null, showInstr:true, a:"pc-done", perm:null, items:null};
     }
     // single (default)
     return {...it, t:"single", perm:S.shuffleOpts?shuffle([0,1,2,3]):[0,1,2,3]};
@@ -1543,10 +1580,120 @@ function jumpToQ(i){
   quiz.idx=i; quiz.answered=quiz.answers[i]; persistSession(); render();
   window.scrollTo(0,0);
 }
+function toggleSimInstr(){
+  const q=quiz.items[quiz.idx];
+  if(!q || (q.t!=="sim-term" && q.t!=="sim-pc")) return;
+  q.showInstr=!q.showInstr; persistSession(); render();
+}
+function resetSimPBQ(){
+  const q=quiz.items[quiz.idx];
+  if(!q) return;
+  if(q.t==="sim-term"){
+    const scen=q.scen;
+    const lines=[]; const push=(t,c)=>lines.push({t,c:c||""});
+    push('Ticket — '+q.q.replace(/^PBQ — /,''),'sys');
+    push('Investigate with: ipconfig [/all|/renew|/flushdns], ping <ip|name>, tracert <ip|name>, nslookup <name>','sys');
+    push('When confident:  diagnose dhcp | dns | gateway     (help, clear, hint)','sys');
+    push(''); push('C:\\Users\\tafe> (type a command and press Enter)','sys');
+    q.termLines=lines; q.scen=scen;
+    quiz.answers[quiz.idx]=null; quiz.answered=null;
+  } else if(q.t==="sim-pc"){
+    q.pcPlaced={}; q.pcSel=null; q.pcMsg="Select a part, then click its zone on the board."; q.pcGood=null;
+    quiz.answers[quiz.idx]=null; quiz.answered=null;
+  } else if(q.t==="order"){
+    q.shuffled=shuffle(q.items.slice()); quiz.answers[quiz.idx]=null; quiz.answered=null;
+  } else if(q.t==="multi"){
+    quiz.answers[quiz.idx]=[]; quiz.answered=[];
+  }
+  persistSession(); render();
+}
+function examTermSubmit(ev){
+  if(ev.key!=="Enter") return;
+  const inp=ev.target, raw=inp.value;
+  examTermExec(raw); inp.value=""; render();
+}
+function examTermExec(raw){
+  const q=quiz.items[quiz.idx];
+  if(!q || q.t!=="sim-term") return;
+  const cmd=raw.trim(); if(!cmd) return;
+  const add=(t,c)=>q.termLines.push({t,c:c||""});
+  add("C:\\Users\\tafe> "+cmd,"cmd");
+  const p=cmd.toLowerCase().split(/\s+/), c0=p[0];
+  const scen=q.scen, isName=t=>/[a-z]/i.test(t)&&!/^\d+(\.\d+){3}$/.test(t), local=t=>t.startsWith("192.168.1.")&&t!==scen.gw;
+  const tp2=(t,c)=>add(t,c);
+  if(c0==="help"){ tp2("Commands: ipconfig [/all|/renew|/flushdns], ping <target>, tracert <target>, nslookup <name>, diagnose <dhcp|dns|gateway>, hint, clear"); }
+  else if(c0==="clear"){ q.termLines=q.termLines.slice(0,4); }
+  else if(c0==="hint"){ tp2(">> HINT: "+scen.hint,"sys"); }
+  else if(c0==="ipconfig"){
+    if(p[1]==="/renew"){
+      if(scen.id==="dhcp"){ tp2("An error occurred while renewing interface Ethernet0:","err"); tp2("unable to contact your DHCP server. Request has timed out.","err"); }
+      else tp2("IPv4 Address renewed: "+scen.ip);
+    } else if(p[1]==="/flushdns"){ tp2("Successfully flushed the DNS Resolver Cache."+(scen.id==="dns"?" (Names still fail — the cache wasn't the problem.)":"")); }
+    else { tp2("Ethernet adapter Ethernet0:"); tp2(""); tp2("   IPv4 Address. . . . . . . . . . . : "+scen.ip+(scen.id==="dhcp"?"  (Autoconfiguration)":"")); tp2("   Subnet Mask . . . . . . . . . . . : "+scen.mask); tp2("   Default Gateway . . . . . . . . . : "+(scen.gw||"")); if(p[1]==="/all"){ tp2("   DHCP Enabled. . . . . . . . . . . : Yes"); tp2("   DNS Servers . . . . . . . . . . . : "+(scen.dns||"")); } }
+  }
+  else if(c0==="ping"){
+    const t=p[1]; if(!t){ tp2("Usage: ping <ip or hostname>","err"); }
+    else if(t==="127.0.0.1"||t===scen.ip){ tp2("Reply from "+t+": bytes=32 time<1ms TTL=128  (x4)","ok"); }
+    else if(scen.id==="dhcp"){ tp2("PING: transmit failed. General failure.  (x4)","err"); }
+    else if(isName(t)){ if(scen.id==="dns"||scen.id==="gateway") tp2("Ping request could not find host "+t+". Please check the name and try again.","err"); else tp2("Reply from 142.250.72.14: bytes=32 time=18ms TTL=115  (x4)","ok"); }
+    else if(scen.id==="gateway"){ if(local(t)) tp2("Reply from "+t+": bytes=32 time=1ms TTL=128  (x4)","ok"); else tp2("Request timed out.  (x4)","err"); }
+    else { tp2("Reply from "+t+": bytes=32 time="+(local(t)?"1":"17")+"ms TTL=115  (x4)","ok"); }
+  }
+  else if(c0==="tracert"){
+    const t=p[1]; if(!t){ tp2("Usage: tracert <target>","err"); }
+    else if(scen.id==="dhcp"){ tp2("Unable to contact IP driver. General failure.","err"); }
+    else if(isName(t)&&(scen.id==="dns"||scen.id==="gateway")){ tp2("Unable to resolve target system name "+t+".","err"); }
+    else if(scen.id==="gateway"){ tp2("Tracing route to "+t+":"); tp2("  1     *        *        *     Request timed out.","err"); tp2("  2     *        *        *     Request timed out.","err"); }
+    else { tp2("Tracing route to "+t+":"); tp2("  1     1 ms   192.168.1.1","ok"); tp2("  2    11 ms   100.64.0.1","ok"); tp2("  3    17 ms   "+(isName(t)?"142.250.72.14":t),"ok"); }
+  }
+  else if(c0==="nslookup"){
+    const t=p[1]||"google.com";
+    if(scen.id==="dhcp"){ tp2("DNS request timed out. Default Server: UnKnown","err"); }
+    else if(scen.id==="dns"){ tp2("Server: "+scen.dns); tp2("DNS request timed out. *** Request to "+scen.dns+" timed-out","err"); }
+    else if(scen.id==="gateway"){ tp2("Server: "+scen.dns); tp2("DNS request timed out. *** Request to "+scen.dns+" timed-out","err"); }
+    else { tp2("Name: "+t); tp2("Address: 142.250.72.14","ok"); }
+  }
+  else if(c0==="diagnose"){
+    const g=p[1];
+    if(!g){ tp2("Usage: diagnose <dhcp|dns|gateway>","err"); }
+    else {
+      quiz.answers[quiz.idx]=g; quiz.answered=g;
+      if(g===scen.id){ tp2("[RECORDED] Diagnosis '"+g+"' saved — you can change it anytime before Submit. Use Show Question to review.","ok"); if(Object.keys(q.pcPlaced||{}).length) {} }
+      else { tp2("[RECORDED] Diagnosis '"+g+"' saved — you can change it before Submit. (Not telling you if it’s right — exam wouldn’t either.)","sys"); }
+      persistSession(); render(); return;
+    }
+  }
+  else { tp2("'"+c0+"' is not recognized. Type help for commands.","err"); }
+  persistSession(); render();
+}
+function examPcSelect(id){
+  const q=quiz.items[quiz.idx];
+  if(!q || q.t!=="sim-pc") return;
+  if(q.pcPlaced[id]) return;
+  q.pcSel=id; q.pcGood=null; q.pcMsg="Now click the right zone for "+(PC_PARTS.find(p=>p.id===id)?.name||id)+" on the board."; persistSession(); render();
+}
+function examPcDrop(zoneId){
+  const q=quiz.items[quiz.idx];
+  if(!q || q.t!=="sim-pc") return;
+  if(!q.pcSel){ q.pcGood=null; q.pcMsg="Pick a part from the tray first."; persistSession(); render(); return; }
+  const part=PC_PARTS.find(p=>p.id===q.pcSel);
+  if(part.zone===zoneId){
+    q.pcPlaced[part.id]=true; q.pcSel=null;
+    const left=PC_PARTS.filter(p=>!q.pcPlaced[p.id]).length;
+    q.pcGood=true; q.pcMsg=part.why+(left?"":"  Build complete — all zones correct!");
+    if(left===0){ quiz.answers[quiz.idx]="pc-done"; quiz.answered="pc-done"; } else { quiz.answers[quiz.idx]=null; quiz.answered=null; }
+  } else {
+    const z=PC_ZONES.find(z=>z.id===zoneId);
+    q.pcGood=false; q.pcMsg="The "+part.name+" doesn't go in the "+z.label+". "+part.why;
+  }
+  persistSession(); render();
+}
 function isExamAnswered(q, v){
   const t=q.t||"single";
   if(t==="multi"){ return Array.isArray(v) && v.length===(q.pick||q.a.length); }
   if(t==="order"){ return Array.isArray(v) && v.length===q.items.length; }
+  if(t==="sim-term"){ return typeof v==="string" && v.length>0; }
+  if(t==="sim-pc"){ return v==="pc-done"; }
   return v!==null && v!==undefined;
 }
 function examProgress(){ if(!quiz||!quiz.exam) return {ans:0,flag:0,total:0}; let ans=0; quiz.answers.forEach((v,i)=>{ if(isExamAnswered(quiz.items[i],v)) ans++; }); return {ans, flag:quiz.flagged.size, total:quiz.items.length}; }
@@ -1564,6 +1711,8 @@ function isCorrect(q, ans){
     if(ans.length!==q.a.length) return false;
     return ans.every((v,i)=>v===q.a[i]);
   }
+  if(t==="sim-term"){ return typeof ans==="string" && ans===q.a; }
+  if(t==="sim-pc"){ return ans==="pc-done" && q.pcPlaced && PC_PARTS.every(p=>q.pcPlaced[p.id]); }
   return ans===q.a;
 }
 function canSubmitExam(){ return !!(quiz&&quiz.exam&&!quiz.done); }
@@ -1715,9 +1864,10 @@ async function startGapQuiz(){
   if(AIBUSY) return;
   const top=gapScores().filter(g=>g.priority>0).slice(0,3).map(g=>g.id);
   const ids=top.length?top:gapScores().slice(0,3).map(g=>g.id);
-  await maybeTopUp(ids);                          // auto-generate if a gap domain is low
-  let items=selectQuestions(ids,12);
-  if(!items.length) items=selectQuestions(ids,12,{includeMastered:true});
+  await maybeTopUp(ids);
+  let items=selectQuestions(ids,12).filter(q=> q.t!=="sim-term" && q.t!=="sim-pc");
+  if(!items.length) items=selectQuestions(ids,12,{includeMastered:true}).filter(q=> q.t!=="sim-term" && q.t!=="sim-pc");
+  if(!items.length){ alert("No practice questions for those gaps — try a quick quiz."); return; }
   quiz={items:prep(items), idx:0, right:0, answered:null, results:[], gap:true};
   tab="quiz"; persistSession(); render();
 }
@@ -1946,13 +2096,47 @@ function examActiveView(){
       <div class="exam-timer-wrap"><span id="exam-timer" class="exam-timer${rem<=300?" danger":rem<=900?" warn":""}">${fmtTime(rem)}</span><span class="muted" style="font-size:.65rem;letter-spacing:.08em">REMAINING</span></div>
     </div>
     <div class="exam-progress"><div class="bar" style="height:8px"><div style="width:${Math.round(100*p.ans/total)}%;--w:${Math.round(100*p.ans/total)}%"></div></div><div class="muted" style="font-size:.72rem;margin-top:6px">${p.ans}/${total} answered · ${p.flag} flagged · ${total-p.ans} remaining</div></div>
-    <div class="question" style="margin-top:12px">${esc(q.q)}${(q.t==="multi")?` <span class="tag" style="background:var(--card2)">SELECT ${q.pick||q.a.length}</span>`: (q.t==="order")?` <span class="tag">DRAG TO ORDER</span>`:""}</div>
     ${(()=>{
       const t=q.t||"single";
+      const isSim = t==="sim-term" || t==="sim-pc";
+      const instrOpen = q.showInstr!==false;
+      const simInstr = isSim ? `<div class="card" style="margin:12px 0;padding:12px;background:var(--card2);border-style:${instrOpen?"solid":"dashed"}">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <b style="font-size:.82rem">${ic("book")} Instructions ${instrOpen?"(covering simulation — minimize to work)":""}</b>
+          <button class="btn small secondary" style="padding:4px 10px" onclick="toggleSimInstr()">${instrOpen?"Minimize":"Show Question"}</button>
+        </div>
+        ${instrOpen?`<div class="muted" style="margin-top:8px;line-height:1.55">${esc(q.q)}<br><span style="font-size:.72rem">${t==="sim-term"?"Complete the simulation, then type <b>diagnose &lt;dhcp|dns|gateway&gt;</b> in the terminal. Your diagnosis is your answer — change it any time before Submit. Use <b>help</b> for commands.":"Select each part then click its correct zone. Only exact zones score — partial boards are 0 like CompTIA. All 7 must be placed."}</span></div>
+        <div class="row" style="margin-top:8px"><button class="btn small secondary" onclick="resetSimPBQ()">↺ Reset this PBQ only</button><span class="muted" style="font-size:.65rem;align-self:center">Resets this question only, like the real Reset — other answers kept.</span></div>`:""}
+      </div>`:"";
+      if(t==="sim-term"){
+        const curAns = typeof sel==="string"?sel:"";
+        const lines=(q.termLines||[]).map(l=>`<div class="${l.c}">${esc(l.t)}</div>`).join("");
+        return simInstr + `<div class="question" style="margin-top:6px;display:none">${esc(q.q)}</div>
+          <div class="term" id="exam-term-out" style="height:320px">${lines}</div>
+          <div class="term-input"><span>C:\\Users\\tafe&gt;</span><input id="exam-term-in" autocomplete="off" spellcheck="false" onkeydown="examTermSubmit(event)" placeholder="ipconfig, ping, diagnose …"></div>
+          ${curAns?`<div class="pill" style="margin-top:8px;display:inline-block">Diagnosis saved: <b>${esc(curAns)}</b> · change any time</div>`:`<div class="muted" style="margin-top:8px;font-size:.72rem">No diagnosis saved yet — your PBQ answer is the last <b>diagnose</b> you typed.</div>`}`;
+      }
+      if(t==="sim-pc"){
+        const placed=q.pcPlaced||{}, selId=q.pcSel, msg=q.pcMsg||"", good=q.pcGood;
+        const doneAll=PC_PARTS.every(p=>placed[p.id]);
+        return simInstr + `<div class="question" style="margin-top:6px;display:none">${esc(q.q)}</div>
+          <div class="muted" style="margin:6px 0 ${good===true?8:12}px;font-size:.78rem">${good===true?OKI+" ":good===false?BADI+" ":""}${esc(msg)}</div>
+          <div class="mobo">
+            ${PC_ZONES.map(z=>{
+              const filled=PC_PARTS.some(p=>p.zone===z.id&&placed[p.id]);
+              return `<div class="zone ${filled?'done':(selId?'hot':'')}" style="left:${z.x}%;top:${z.y}%;width:${z.w}%;height:${z.h}%" onclick="examPcDrop('${z.id}')">${filled?ic("check")+" "+z.label:z.label}</div>`;
+            }).join("")}
+          </div>
+          <div class="parts">${PC_PARTS.map(p=>`<div class="part ${selId===p.id?'sel':''} ${placed[p.id]?'used':''}" onclick="examPcSelect('${p.id}')">${ic(p.icon)}${p.name}</div>`).join("")}</div>
+          ${doneAll?`<div class="explain" style="margin-top:10px">All 7 placed — PBQ answer saved as <b>pc-done</b>. Change or Reset any time before Submit.</div>`: `<div class="muted" style="margin-top:8px;font-size:.72rem">${Object.keys(placed).length}/7 placed — exact placement required (strict, no partial).</div>`}`;
+      }
+      // non-sim types
+      const titleAdd = (q.t==="multi")?` <span class="tag" style="background:var(--card2)">SELECT ${q.pick||q.a.length}</span>`: (q.t==="order")?` <span class="tag">DRAG TO ORDER</span>`:"";
+      const header = `<div class="question" style="margin-top:12px">${esc(q.q)}${titleAdd}</div>`;
       if(t==="multi"){
         const cur=Array.isArray(sel)?sel:[];
         const cnt=cur.length, need=q.pick||q.a.length;
-        return (q.perm||[...Array(q.o.length).keys()]).map(oi=>{
+        return header + (q.perm||[...Array(q.o.length).keys()]).map(oi=>{
           const pos=(q.perm||[...Array(q.o.length).keys()]).indexOf(oi);
           const isSel=cur.includes(oi);
           return `<button class="opt${isSel?" sel":""}" onclick="toggleMulti(${oi})" style="display:flex;gap:10px;align-items:center"><span style="width:16px;height:16px;border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;background:${isSel?"var(--ink)":"transparent"};color:${isSel?"var(--bg)":"transparent"}">${isSel?ic("check"):""}</span>${String.fromCharCode(65+pos)}. ${esc(q.o[oi])}</button>`;
@@ -1960,11 +2144,11 @@ function examActiveView(){
       }
       if(t==="order"){
         const cur=getOrderDisplay(q);
-        return `<div class="muted" style="margin:8px 0 6px;font-size:.72rem">Tap ↑/↓ to reorder — top is first step. Exact order required.</div>
+        return header + `<div class="muted" style="margin:8px 0 6px;font-size:.72rem">Tap ↑/↓ to reorder — top is first step. Exact order required.</div>
           ${cur.map((txt,i)=>`<div class="pbq-slot filled" style="display:flex;justify-content:space-between;align-items:center"><span><span class="n">${i+1}.</span> ${esc(txt)}</span><span style="display:flex;gap:4px"><button class="btn small secondary" style="padding:4px 8px" ${i===0?"disabled":""} onclick="moveOrder(${i},${i-1})">↑</button><button class="btn small secondary" style="padding:4px 8px" ${i===cur.length-1?"disabled":""} onclick="moveOrder(${i},${i+1})">↓</button></span></div>`).join("")}`;
       }
       const isSingleSel=sel;
-      return (q.perm||[0,1,2,3]).map((oi,pos)=>{
+      return header + (q.perm||[0,1,2,3]).map((oi,pos)=>{
         const isSel=oi===isSingleSel;
         return `<button class="opt${isSel?" sel":""}" onclick="answer(${oi})">${String.fromCharCode(65+pos)}. ${esc(q.o[oi])}</button>`;
       }).join("");
@@ -2020,6 +2204,13 @@ function examResultView(){
         const fmtA=(arr)=> arr? arr.join(" → ") : "—";
         yours = r.ans && r.ans.length ? esc(fmtA(r.ans)) : '<i class="danger">Unanswered</i>';
         corr = esc(fmtA(r.q.a));
+      } else if(t==="sim-term"){
+        yours = r.ans ? esc('diagnose '+r.ans) : '<i class="danger">Unanswered</i>';
+        corr = esc('diagnose '+r.q.a);
+      } else if(t==="sim-pc"){
+        const placed=r.q.pcPlaced? Object.keys(r.q.pcPlaced).length : 0;
+        yours = r.ans==="pc-done" ? 'All 7 zones placed correctly' : placed? (placed+'/7 placed')+' — incomplete' : '<i class="danger">Unanswered</i>';
+        corr = 'All 7 zones placed correctly (strict)';
       } else {
         yours = r.ans===null||r.ans===undefined ? '<i class="danger">Unanswered</i>' : esc(String.fromCharCode(65+r.ans)+". "+r.q.o[r.ans]);
         corr = String.fromCharCode(65+r.q.a)+". "+esc(r.q.o[r.q.a]);
@@ -2742,11 +2933,11 @@ function labView(){
   if(lab==="pc") return back+pcView();
   return back;
 }
-/* practice ALL questions in a single domain (shuffled, no mastery filter) */
+/* practice ALL questions in a single domain (shuffled, no mastery filter) — PBQ sims stay exam-only */
 async function startDomainTest(id){
   if(AIBUSY) return;
-  const domQuestions=QUESTIONS.filter(q=>q.d===id);
-  if(!domQuestions.length){ alert("No questions for this domain yet."); return; }
+  const domQuestions=QUESTIONS.filter(q=>q.d===id && q.t!=="sim-term" && q.t!=="sim-pc");
+  if(!domQuestions.length){ alert("No practice questions for this domain yet."); return; }
   quiz={items:prep(shuffle(domQuestions)),idx:0,right:0,answered:null,results:[],domainId:id};
   tab="quiz"; persistSession(); render();
 }
@@ -2754,8 +2945,8 @@ async function startDomainTest(id){
 async function startDomainQuiz(id){
   if(AIBUSY) return;
   await maybeTopUp([id]);
-  let items=selectQuestions([id],S.quizLen);
-  if(!items.length) items=selectQuestions([id],S.quizLen,{includeMastered:true});
+  let items=selectQuestions([id],S.quizLen).filter(q=> q.t!=="sim-term" && q.t!=="sim-pc");
+  if(!items.length) items=selectQuestions([id],S.quizLen,{includeMastered:true}).filter(q=> q.t!=="sim-term" && q.t!=="sim-pc");
   if(!items.length){ alert("No questions for this domain yet."); return; }
   quiz={items:prep(items),idx:0,right:0,answered:null,results:[]}; tab="quiz"; persistSession(); render();
 }
